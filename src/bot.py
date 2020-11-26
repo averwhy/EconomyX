@@ -92,7 +92,7 @@ bot.initial_extensions = ["jishaku","cogs.playermeta","cogs.devtools","cogs.game
 with open("TOKEN.txt",'r') as t:
     TOKEN = t.readline()
 bot.time_started = time.localtime()
-bot.version = '0.1.0'
+bot.version = '0.1.1'
 bot.newstext = None
 bot.news_set_by = "no one yet.."
 
