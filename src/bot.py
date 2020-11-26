@@ -12,6 +12,8 @@ class EcoBot(commands.Bot):
     async def add_player(self,member_object):
         try:
             await bot.db.execute("INSERT INTO e_users VALUES (?, ?, ?, 100.0, 0.0, 'FFFFFF')",(member_object.id,member_object.name,member_object.guild.id,))
+            # then update guild balance
+            await bot.db.execute("UPDATE e_guilds SET bal = (bal + 100) WHERE id = ?",(member_object.guild.id,))
             await bot.db.commit()
             return "Done! View your profile with `^profile`"
         except Exception as e:
@@ -19,24 +21,19 @@ class EcoBot(commands.Bot):
         
     async def get_player(self,id):
         cur = await bot.db.execute("SELECT * FROM e_users WHERE id = ?",(id,))
-        print(cur)
         data = await cur.fetchone()
         await bot.db.commit()
-        if data is None:
-            return None
-        else:
-            return data
+        return data
         
     async def usercheck(self,id):
         cur = await bot.db.execute("SELECT * FROM e_users WHERE id = ?",(id,))
-        print(cur)
         data = await cur.fetchone()
         return data is not None
         # False = Not in database
         # True = In database
         
     async def on_bet_win(self,member_object,amount_bet):
-        c = await bot.db.execute("SELECT * FROM e_users WHERE id = ?",(member_object.id))
+        c = await bot.db.execute("SELECT * FROM e_users WHERE id = ?",(member_object.id,))
         data = await c.fetchone()
         if data is not None:
             amount_won = amount_bet * 2
@@ -47,16 +44,17 @@ class EcoBot(commands.Bot):
             await bot.db.execute("UPDATE e_guilds SET bal = (bal + ?) WHERE id = ?",(amount_bet,data[2],))
             await bot.db.execute("UPDATE e_guilds SET totalearnings = (totalearnings + ?) WHERE id = ?",(amount_bet,data[2],))
             #get new data
-            c = await bot.db.execute("SELECT * FROM e_users WHERE id = ?",(member_object.id))
+            c = await bot.db.execute("SELECT * FROM e_users WHERE id = ?",(member_object.id,))
+            await bot.db.commit()
             data2 = await c.fetchone()
-            newbalance = float(data[4])
+            newbalance = float(data[3])
             
             return [amount_won,newbalance]
         else:
             return None
         
     async def on_bet_loss(self,member_object,amount_bet):
-        c = await bot.db.execute("SELECT * FROM e_users WHERE id = ?",(member_object.id))
+        c = await bot.db.execute("SELECT * FROM e_users WHERE id = ?",(member_object.id,))
         data = await c.fetchone()
         if data is not None:
             amount_lost = amount_bet
@@ -65,22 +63,36 @@ class EcoBot(commands.Bot):
             #then guild updates
             await bot.db.execute("UPDATE e_guilds SET bal = (bal - ?) WHERE id = ?",(amount_bet,data[2],))
             #get new data
-            c = await bot.db.execute("SELECT * FROM e_users WHERE id = ?",(member_object.id))
+            c = await bot.db.execute("SELECT * FROM e_users WHERE id = ?",(member_object.id,))
+            await bot.db.commit()
             data2 = await c.fetchone()
-            newbalance = float(data[4])
+            newbalance = float(data[3])
             
             return newbalance
         else:
             return None
+    async def transfer_money(self,member_paying,member_getting_paid,amount):
+        c = await bot.db.execute("SELECT * FROM e_users WHERE id = ?",(member_paying.id,))
+        data1 = await c.fetchone()
+        c = await bot.db.execute("SELECT * FROM e_users WHERE id = ?",(member_getting_paid.id,))
+        data2 = await c.fetchone()
+        #update users
+        await bot.db.execute("UPDATE e_users SET bal = (bal - ?) WHERE id = ?",(amount,member_paying.id,))
+        await bot.db.execute("UPDATE e_users SET bal = (bal + ?) WHERE id = ?",(amount,member_getting_paid.id,))
+        #then guilds update
+        await bot.db.execute("UPDATE e_guilds SET bal = (bal - ?) WHERE id = ?",(amount,data1[2],))
+        await bot.db.execute("UPDATE e_guilds SET bal = (bal + ?) WHERE id = ?",(amount,data2[2],))
+        
+        await bot.db.commit()
        
             
 bot = EcoBot(command_prefix=commands.when_mentioned_or("^"),intents=discord.Intents(reactions = True, messages = True, guilds = True, members = True))
 
-bot.initial_extensions = ["jishaku","cogs.playermeta","cogs.devtools"]
+bot.initial_extensions = ["jishaku","cogs.playermeta","cogs.devtools","cogs.game","cogs.moneymeta","cogs.misc"]
 with open("TOKEN.txt",'r') as t:
     TOKEN = t.readline()
 bot.time_started = time.localtime()
-bot.version = '0.0.1'
+bot.version = '0.1.0'
 bot.newstext = None
 bot.news_set_by = "no one yet.."
 
@@ -88,7 +100,6 @@ bot.news_set_by = "no one yet.."
 async def startup():
     await bot.wait_until_ready()
     bot.db = await aiosqlite.connect('economyx.db')
-    
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_users (id int, name text, guildid int,bal double, totalearnings double, profilecolor text)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_guilds (id int, name text, bal double, totalearnings double)")
     print("Database connected")
@@ -130,11 +141,24 @@ async def on_command_error(ctx, error): # this is an event that runs when there 
         msgtodelete = await ctx.send("`ERROR: Missing permissions.`")
         await asyncio.sleep(10)
         await msgtodelete.delete()
+    elif isinstance(error, commands.CheckFailure):
+        # these will be handled in cogs
+        return
     else:
         await ctx.send(f"```diff\n- {error}\n```")
         # All other Errors not returned come here. And we can just print the default TraceBack.
         print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+
+@bot.event
+async def on_guild_join(guild):
+    c = await bot.db.execute("SELECT * FROM e_guilds WHERE id = ?",(guild.id,))
+    data = await c.fetchone()
+    if data is None:
+        await bot.db.execute("INSERT INTO e_guilds VALUES (?,?,0,0)",(guild.id,guild.name,))
+    if data is not None:
+        #already in database
+        pass
 
 for cog in bot.initial_extensions:
     try:

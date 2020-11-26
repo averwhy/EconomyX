@@ -14,7 +14,7 @@ class devtools(commands.Cog):
     async def cog_check(self,ctx):
         return ctx.author.id == OWNER_ID
     
-    @commands.group(invoke_without_command=True)
+    @commands.group(invoke_without_command=True,hidden=True)
     async def dev(self, ctx):
         #bot dev commands
         await ctx.send("`You're missing one of the below arguements:` ```md\n- reload\n- loadall\n- status <reason>\n- ban <user> <reason>\n```")
@@ -124,34 +124,11 @@ class devtools(commands.Cog):
         except asyncio.TimeoutError:
             await askmessage.edit(content="`Timed out. haha why didnt you respond you idiot`")
         else:
-            await askmessage.clear_reactions()
             await ctx.send("`bye`")
             print(f"Bot is being stopped by {ctx.message.author} ({ctx.message.id})")
             await self.bot.db.commit()
             await self.bot.db.close()
             await self.bot.logout()
-            
-    @dev.command(aliases=["rc"])
-    async def resetcooldown(self, ctx, *cmdnames):
-        output = ""
-        if "all" in cmdnames:
-            for c in self.bot.commands:
-                try:
-                    c._buckets._cooldown.reset()
-                    output = output + (f"Cooldown on command {c.name} successfully reset") + "\n"
-                except Exception as e:
-                    e = str(e)
-                    output = output + e + "\n"
-        else:
-            for c in cmdnames:
-                try:
-                    cmd = self.bot.get_command(c)       
-                    cmd._buckets._cooldown.reset()
-                    output = output + (f"Cooldown on command {cmd.name} successfully reset") + "\n"
-                except Exception as e:
-                    e = str(e)
-                    output = output + e + "\n"
-        await ctx.send(f"```{output}\n```")
         
     @dev.group(invoke_without_command=True)
     async def sql(self, ctx):
@@ -184,6 +161,54 @@ class devtools(commands.Cog):
             await ctx.message.add_reaction(emoji="\U00002705")
         except Exception as e:
             await ctx.send(f"```sql\n{e}\n```")
+            
+    @dev.group(invoke_without_command=True)
+    async def eco(self, ctx):
+        pass
+    
+    @eco.command()
+    async def reset(self, ctx, user: discord.User = None):
+        if user is None:
+            await ctx.send("Provide an user")
+            return
+        player = await self.bot.get_player(user.id)
+        if player is None:
+            await ctx.send("They're not even in the database...")
+            return
+        
+        await self.bot.db.execute("UPDATE e_users SET bal = 100 WHERE id = ?",(user.id,))
+        await ctx.send("Reset.")
+        
+    @eco.command()
+    async def give(self, ctx, user: discord.User = None, amount: float = None):
+        if user is None:
+            await ctx.send("Provide an user.")
+            return
+        if amount is None:
+            await ctx.send("Provide an amount.")
+        player = await self.bot.get_player(user.id)
+        if player is None:
+            await ctx.send("They're not even in the database...")
+            return
+        
+        await self.bot.db.execute("UPDATE e_users SET bal = (bal + ?) WHERE id = ?",(amount, user.id,))
+        await ctx.send(f"Success.\nNew balance: ${(player[3] + amount)}")
+    
+    @eco.command(name="set")
+    async def setamount(self, ctx, user: discord.User = None, amount: float = None):
+        if user is None:
+            await ctx.send("Provide an user.")
+            return
+        if amount is None:
+            await ctx.send("Provide an amount.")
+        player = await self.bot.get_player(user.id)
+        if player is None:
+            await ctx.send("They're not even in the database...")
+            return
+        
+        await self.bot.db.execute("UPDATE e_users SET bal = ? WHERE id = ?",(amount, user.id,))
+        await ctx.send("Success.")
+    
         
 
 def setup(bot):
