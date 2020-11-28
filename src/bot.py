@@ -5,6 +5,12 @@ import sys, os
 import traceback
 import asyncio
 import time
+import random
+os.environ["JISHAKU_NO_DM_TRACEBACK"] = "True" 
+os.environ["JISHAKU_HIDE"] = "True"
+
+desc = "EconomyX is a money system for Discord. It's straightfoward with only economy related commands, to keep it simple. I was made by averwhy#3899."
+
 class EcoBot(commands.Bot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -86,15 +92,17 @@ class EcoBot(commands.Bot):
         await bot.db.commit()
        
             
-bot = EcoBot(command_prefix=commands.when_mentioned_or("^"),intents=discord.Intents(reactions = True, messages = True, guilds = True, members = True))
+bot = EcoBot(command_prefix=commands.when_mentioned_or("^","ecox ","ex "),intents=discord.Intents(reactions = True, messages = True, guilds = True, members = True))
 
-bot.initial_extensions = ["jishaku","cogs.playermeta","cogs.devtools","cogs.game","cogs.moneymeta","cogs.misc"]
+bot.initial_extensions = ["jishaku","cogs.player_meta","cogs.devtools","cogs.games","cogs.money_meta","cogs.misc","cogs.jobs"]
 with open("TOKEN.txt",'r') as t:
     TOKEN = t.readline()
 bot.time_started = time.localtime()
 bot.version = '0.1.1'
 bot.newstext = None
 bot.news_set_by = "no one yet.."
+bot.total_command_errors = 0
+bot.total_command_completetions = 0
 
 
 async def startup():
@@ -103,6 +111,10 @@ async def startup():
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_users (id int, name text, guildid int,bal double, totalearnings double, profilecolor text)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_guilds (id int, name text, bal double, totalearnings double)")
     print("Database connected")
+    
+    bot.backup_db = await aiosqlite.connect('ecox_backup.db')
+    print("Backup database is ready")
+    await bot.backup_db.close()
 bot.loop.create_task(startup())
 
 @bot.event
@@ -137,10 +149,6 @@ async def on_command_error(ctx, error): # this is an event that runs when there 
         await asyncio.sleep(15)
         await msgtodelete.delete()
         return
-    elif isinstance(error, discord.ext.commands.errors.NotOwner):
-        msgtodelete = await ctx.send("`ERROR: Missing permissions.`")
-        await asyncio.sleep(10)
-        await msgtodelete.delete()
     elif isinstance(error, commands.CheckFailure):
         # these will be handled in cogs
         return

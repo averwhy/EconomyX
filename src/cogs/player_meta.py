@@ -7,7 +7,7 @@ from discord.ext.commands.cooldowns import BucketType
 from discord.ext.commands import CheckFailure, check
 OWNER_ID = 267410788996743168
 
-class playermeta(commands.Cog):
+class player_meta(commands.Cog):
     def __init__(self,bot):
         self.bot = bot
     
@@ -38,12 +38,12 @@ class playermeta(commands.Cog):
             msg = await self.bot.add_player(ctx.author)
             await ctx.send(msg)
         
-    @commands.cooldown(1,300,BucketType.user)
     @commands.group(aliases=["c","change","custom"],invoke_without_command=True)
     async def customize(self,ctx):
         #await ctx.send("`Youre missing one of the below params:` ```md\n- guild\n- color\n```")
         customize.reset_cooldown(ctx)
         
+    @commands.cooldown(1,60,BucketType.user)
     @customize.command(name="guild")
     async def gld(self, ctx, newguild: int = None):
         data = await self.bot.get_player(ctx.author.id)
@@ -126,6 +126,10 @@ class playermeta(commands.Cog):
                     await self.bot.db.execute("UPDATE e_users SET profilecolor = ? WHERE id = ?",(hexcolor,ctx.author.id,))
                     await self.bot.db.commit()
                     await ctx.send("`Success! Do ^profile to see your new profile color.`")
+        
+        @color.error()
+        async def color_error(ctx, error):
+            color.reset_cooldown(ctx)
                 
                 
     @commands.command(aliases=["lb"])
@@ -148,4 +152,4 @@ class playermeta(commands.Cog):
         
         
 def setup(bot):
-    bot.add_cog(playermeta(bot))
+    bot.add_cog(player_meta(bot))

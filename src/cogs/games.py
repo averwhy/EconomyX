@@ -8,7 +8,7 @@ from discord.ext.commands.cooldowns import BucketType
 from discord.ext.commands import CheckFailure, check
 OWNER_ID = 267410788996743168
 
-class game(commands.Cog):
+class games(commands.Cog):
     def __init__(self,bot):
         self.bot = bot
     
@@ -47,6 +47,9 @@ class game(commands.Cog):
     @rockpaperscissors.command(aliases=["p"])
     async def paper(self, ctx):
         player = await self.bot.get_player(ctx.author.id)
+        if player is None:
+            await ctx.send("You dont have a profile! Get one with `^register`.")
+            return
         if player[3] < 100:
             await ctx.send(f"Sorry. You have to have at least $100 to play rock paper scissors.\nYour balance: ${player[3]}")
             return
@@ -60,6 +63,7 @@ class game(commands.Cog):
         if final_outcome == "win":
             await ctx.send(f"Hey, you won.\n{m}\nHeres $100.")
             await self.bot.db.execute("UPDATE e_users SET bal = (bal + 100) WHERE id = ?",(ctx.author.id,))
+            await self.bot.db.execute("UPDATE e_users SET totalearnings = (totalearnings + 100) WHERE id = ?",(ctx.author.id,))
             return
         if final_outcome == "lose":
             await ctx.send(f"Damn, I won.\n{m}\nThanks for the $100.")
@@ -73,6 +77,9 @@ class game(commands.Cog):
     @rockpaperscissors.command(aliases=["r"])
     async def rock(self, ctx):
         player = await self.bot.get_player(ctx.author.id)
+        if player is None:
+            await ctx.send("You dont have a profile! Get one with `^register`.")
+            return
         if player[3] < 100:
             await ctx.send(f"Sorry. You have to have at least $100 to play rock paper scissors.\nYour balance: ${player[3]}")
             return
@@ -86,6 +93,7 @@ class game(commands.Cog):
         if final_outcome == "win":
             await ctx.send(f"Hey, you won.\n{m}\nHeres $100.")
             await self.bot.db.execute("UPDATE e_users SET bal = (bal + 100) WHERE id = ?",(ctx.author.id,))
+            await self.bot.db.execute("UPDATE e_users SET totalearnings = (totalearnings + 100) WHERE id = ?",(ctx.author.id,))
             return
         if final_outcome == "lose":
             await ctx.send(f"Damn, I won.\n{m}\nThanks for the $100.")
@@ -99,6 +107,9 @@ class game(commands.Cog):
     @rockpaperscissors.command(aliases=["s","scissor"])
     async def scissors(self, ctx):
         player = await self.bot.get_player(ctx.author.id)
+        if player is None:
+            await ctx.send("You dont have a profile! Get one with `^register`.")
+            return
         if player[3] < 100:
             await ctx.send(f"Sorry. You have to have at least $100 to play rock paper scissors.\nYour balance: ${player[3]}")
             return
@@ -112,6 +123,7 @@ class game(commands.Cog):
         if final_outcome == "win":
             await ctx.send(f"Hey, you won.\n{m}\nHeres $100.")
             await self.bot.db.execute("UPDATE e_users SET bal = (bal + 100) WHERE id = ?",(ctx.author.id,))
+            await self.bot.db.execute("UPDATE e_users SET totalearnings = (totalearnings + 100) WHERE id = ?",(ctx.author.id,))
             return
         if final_outcome == "lose":
             await ctx.send(f"Damn, I won.\n{m}\nThanks for the $100.")
@@ -122,11 +134,58 @@ class game(commands.Cog):
             return
         
         
-
-
+    @commands.cooldown(1,60,BucketType.user)
+    @commands.command()
+    async def guess(self, ctx, amount: float):
+        amount = float(amount)
+        player = await self.bot.get_player(ctx.author.id)
+        if player is None:
+            await ctx.send("You dont have a profile! Get one with `^register`.")
+            return
+        if amount != amount:
+            await ctx.send("Thats not a valid amount.")
+            return
+        if player[3] < amount:
+            await ctx.send(f"That bet is too big. You only have ${player[3]}.")
+            return
+        if amount < 1:
+            await ctx.send("Too small of a bet.")
+            return
         
-        
+        await ctx.send(f"Alright, your bet is ${amount}. If you lose, you pay that. If you win, you earn that.\nI'm thinking of a number between 1 and 10. You have 5 tries.")
+        tries = 5
+        guessed_it = False
+        the_number = random.randint(1,10)
+        while not guessed_it:
+            if tries == 0:
+                await ctx.send(f"You're out of tries, and haven't guessed my number.\nYou lose ${amount}.")
+                return
+            def check(m):
+                return m.channel == ctx.channel and m.author == ctx.author
+
+            msg = await self.bot.wait_for('message', check=check)
+            try:
+                content = int(msg.content)
+                if content > 10:
+                    await ctx.send("Guess a number **between 1 and 10.**")
+                    continue
+                if content == the_number:
+                    await ctx.send(f"You guessed it! The number was {the_number}.\nAs promised, here's your winnings of ${amount}.")
+                    await self.bot.db.execute("UPDATE e_users SET bal = (bal + ?) WHERE id = ?",(amount, ctx.author.id,))
+                    return
+                else:
+                    tries -= 1
+                    await ctx.send(f"That's not it!\nYou have {tries} attempt(s) left.")
+            except:
+                content = msg.content
+                content = content.lower()
+                if "cancel" in content:
+                    await ctx.send("Guessing game cancelled. You did not lose or gain any money.")
+                    return
+                else:
+                    await ctx.send("Guess a **number**!")
+                
         
         
 def setup(bot):
-    bot.add_cog(game(bot))
+    bot.add_cog(games(bot))

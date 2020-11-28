@@ -5,6 +5,7 @@ from discord.ext import commands
 from discord.ext.commands.cooldowns import BucketType
 from discord.ext.commands import CheckFailure, check
 import asyncio
+import aiosqlite
 OWNER_ID = 267410788996743168
 
 class devtools(commands.Cog):
@@ -208,8 +209,19 @@ class devtools(commands.Cog):
         
         await self.bot.db.execute("UPDATE e_users SET bal = ? WHERE id = ?",(amount, user.id,))
         await ctx.send("Success.")
-    
         
-
+    @dev.command(aliases=["bu"])
+    async def backup(self, ctx):
+        try:
+            await self.bot.db.commit()
+            self.bot.backup_db = await aiosqlite.connect('ecox_backup.db')
+            await self.bot.db.backup(self.bot.backup_db)
+            await self.bot.backup_db.commit()
+            await self.bot.backup_db.close()
+            await ctx.send("The database was backed up successfully.")
+            return
+        except Exception as e:
+            await ctx.send(f"An error occured while backing up the database:\n`{e}`")
+            return
 def setup(bot):
     bot.add_cog(devtools(bot))

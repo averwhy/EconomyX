@@ -8,7 +8,7 @@ from discord.ext.commands.cooldowns import BucketType
 from discord.ext.commands import CheckFailure, check
 OWNER_ID = 267410788996743168
 
-class moneymeta(commands.Cog):
+class money_meta(commands.Cog):
     def __init__(self,bot):
         self.bot = bot
     
@@ -32,7 +32,7 @@ class moneymeta(commands.Cog):
             return
         try:
             await self.bot.transfer_money(ctx.author,user,amount)
-            await ctx.send("Transfer successful.")
+            await ctx.reply("Transfer successful.")
         except Exception as e:
             await ctx.send(f"Something went wrong.\n{e}")
             
@@ -51,9 +51,14 @@ class moneymeta(commands.Cog):
                 await ctx.send("They dont seem to have a profile.")
                 return
             await ctx.send(f"{str(user)}'s balance: ${data[3]}")
+            
+    @commands.cooldown(1,10,BucketType.user)
+    @commands.command()
+    async def rob(self,ctx):
+        await ctx.send("You can't rob. It's aganist the law.")
         
         
         
         
 def setup(bot):
-    bot.add_cog(moneymeta(bot))
+    bot.add_cog(money_meta(bot))
