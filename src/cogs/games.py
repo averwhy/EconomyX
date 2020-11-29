@@ -157,9 +157,6 @@ class games(commands.Cog):
         guessed_it = False
         the_number = random.randint(1,10)
         while not guessed_it:
-            if tries == 0:
-                await ctx.send(f"You're out of tries, and haven't guessed my number.\nYou lose ${amount}.")
-                return
             def check(m):
                 return m.channel == ctx.channel and m.author == ctx.author
 
@@ -175,6 +172,10 @@ class games(commands.Cog):
                     return
                 else:
                     tries -= 1
+                    if tries == 0:
+                        await ctx.send(f"You're out of tries, and haven't guessed my number.\nYou lose ${amount}.")
+                        await self.bot.db.execute("UPDATE e_users SET bal = (bal - ?) WHERE id = ?",(amount, ctx.author.id,))
+                        return
                     await ctx.send(f"That's not it!\nYou have {tries} attempt(s) left.")
             except:
                 content = msg.content

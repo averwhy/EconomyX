@@ -15,6 +15,10 @@ class jobs(commands.Cog):
     @commands.cooldown(1,600,BucketType.user)
     @commands.command(aliases=["w"])
     async def work(self,ctx):
+        player = await self.bot.get_player(ctx.author.id)
+        if player is None:
+            await ctx.send("You dont have a profile! Get one with `^register`.")
+            return
         pay = random.randint(5,400)
         if pay > 350:
             await ctx.send(f"You worked and got paid ${pay}.\nDamn, you must be good at what you do.")

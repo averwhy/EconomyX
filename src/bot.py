@@ -6,6 +6,7 @@ import traceback
 import asyncio
 import time
 import random
+from datetime import datetime
 os.environ["JISHAKU_NO_DM_TRACEBACK"] = "True" 
 os.environ["JISHAKU_HIDE"] = "True"
 
@@ -27,6 +28,12 @@ class EcoBot(commands.Bot):
         
     async def get_player(self,id):
         cur = await bot.db.execute("SELECT * FROM e_users WHERE id = ?",(id,))
+        data = await cur.fetchone()
+        await bot.db.commit()
+        return data
+    
+    async def get_stock(self, id):
+        cur = await bot.db.execute("SELECT * FROM e_stocks WHERE ownerid = ?",(id,))
         data = await cur.fetchone()
         await bot.db.commit()
         return data
@@ -92,9 +99,9 @@ class EcoBot(commands.Bot):
         await bot.db.commit()
        
             
-bot = EcoBot(command_prefix=commands.when_mentioned_or("^","ecox ","ex "),intents=discord.Intents(reactions = True, messages = True, guilds = True, members = True))
+bot = EcoBot(command_prefix=commands.when_mentioned_or("^","ecox ","ex "),description=desc,intents=discord.Intents(reactions = True, messages = True, guilds = True, members = True))
 
-bot.initial_extensions = ["jishaku","cogs.player_meta","cogs.devtools","cogs.games","cogs.money_meta","cogs.misc","cogs.jobs"]
+bot.initial_extensions = ["jishaku","cogs.player_meta","cogs.devtools","cogs.games","cogs.money_meta","cogs.misc","cogs.jobs","cogs.stocks"]
 with open("TOKEN.txt",'r') as t:
     TOKEN = t.readline()
 bot.time_started = time.localtime()
@@ -103,6 +110,7 @@ bot.newstext = None
 bot.news_set_by = "no one yet.."
 bot.total_command_errors = 0
 bot.total_command_completetions = 0
+bot.launch_time = datetime.utcnow()
 
 
 async def startup():
@@ -110,6 +118,7 @@ async def startup():
     bot.db = await aiosqlite.connect('economyx.db')
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_users (id int, name text, guildid int,bal double, totalearnings double, profilecolor text)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_guilds (id int, name text, bal double, totalearnings double)")
+    await bot.db.execute("CREATE TABLE IF NOT EXISTS e_stocks (stockid int, name text, points double, previouspoints double, ownerid int)")
     print("Database connected")
     
     bot.backup_db = await aiosqlite.connect('ecox_backup.db')

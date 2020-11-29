@@ -40,9 +40,8 @@ class player_meta(commands.Cog):
         
     @commands.group(aliases=["c","change","custom"],invoke_without_command=True)
     async def customize(self,ctx):
-        #await ctx.send("`Youre missing one of the below params:` ```md\n- guild\n- color\n```")
-        customize.reset_cooldown(ctx)
-        
+        await ctx.send("Usage: `^customize <guild/color>`")     
+         
     @commands.cooldown(1,60,BucketType.user)
     @customize.command(name="guild")
     async def gld(self, ctx, newguild: int = None):
