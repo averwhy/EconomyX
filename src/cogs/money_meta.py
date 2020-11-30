@@ -9,6 +9,9 @@ from discord.ext.commands import CheckFailure, check
 OWNER_ID = 267410788996743168
 
 class money_meta(commands.Cog):
+    """
+    These commands are meta about money, such as pay or balance.
+    """
     def __init__(self,bot):
         self.bot = bot
     

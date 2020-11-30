@@ -10,6 +10,9 @@ from datetime import datetime
 OWNER_ID = 267410788996743168
 
 class devtools(commands.Cog):
+    """
+    Dev commands. thats really it
+    """
     def __init__(self,bot):
         self.bot = bot
     

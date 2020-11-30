@@ -97,6 +97,13 @@ class EcoBot(commands.Bot):
         await bot.db.execute("UPDATE e_guilds SET bal = (bal + ?) WHERE id = ?",(amount,data2[2],))
         
         await bot.db.commit()
+        
+    async def get_player_color(self, memberobject):
+        player = await bot.get_player(memberobject.id)
+        if player is None:
+            return None
+        else:
+            return int(("0x"+player[5]),0)
        
             
 bot = EcoBot(command_prefix=commands.when_mentioned_or("^","ecox "),description=desc,intents=discord.Intents(reactions = True, messages = True, guilds = True, members = True))

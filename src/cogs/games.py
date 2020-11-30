@@ -9,6 +9,9 @@ from discord.ext.commands import CheckFailure, check
 OWNER_ID = 267410788996743168
 
 class games(commands.Cog):
+    """
+    Money making games. These are all gambling games at the moment.
+    """
     def __init__(self,bot):
         self.bot = bot
     

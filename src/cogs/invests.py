@@ -22,15 +22,7 @@ class invests(commands.Cog):
         c = await self.bot.db.execute("SELECT stockid, points FROM e_invests")
         all_invests = await c.fetchall()
         for i in all_invests:
-            bruh = random.choice([True, False]) # true = add, false = subtract
-            if bruh:
-                amount = random.uniform(0.1,2)
-                amount = round(amount,2)
-                await self.bot.db.execute("UPDATE e_stocks points = (bal + ?) WHERE stockid = ?",(amount, i[0]))
-            if not bruh:
-                amount = random.uniform(0.1,2)
-                amount = round(amount,2)
-                await self.bot.db.execute("UPDATE e_stocks points = (bal - ?) WHERE stockid = ?",(amount, i[0]))
+            continue
         print(f"{len(all_invests)} invests updated")
      
         

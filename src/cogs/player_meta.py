@@ -8,6 +8,9 @@ from discord.ext.commands import CheckFailure, check
 OWNER_ID = 267410788996743168
 
 class player_meta(commands.Cog):
+    """
+    These commands are player meta. You can use these to get things like player profiles.
+    """
     def __init__(self,bot):
         self.bot = bot
     
@@ -15,16 +18,18 @@ class player_meta(commands.Cog):
     @commands.command(aliases=["p"])
     async def profile(self,ctx,user: discord.User = None):
         if user is None:
-            data = await self.bot.get_player(ctx.author.id)
-            if data is None:
-                await ctx.send("You dont have a profile. Try `^register`")
-            embedcolor = int(("0x"+data[5]),0)
-            embed = discord.Embed(title=f"{str(ctx.author)}'s Profile",description=f"`ID: {ctx.author.id}`",color=embedcolor)
-            embed.set_thumbnail(url=ctx.author.avatar_url)
-            embed.add_field(name="Balance",value=f"${data[3]}")
-            embed.add_field(name="Total earnings",value=f"${data[4]}")
-            embed.set_footer(text=f"EconomyX v{self.bot.version}",icon_url=self.bot.user.avatar_url)
-            await ctx.send(embed=embed)
+            user = ctx.author
+        data = await self.bot.get_player(user.id)
+        if data is None:
+            await ctx.send("You dont have a profile. Try `^register`")
+            return
+        embedcolor = int(("0x"+data[5]),0)
+        embed = discord.Embed(title=f"{str(user)}'s Profile",description=f"`ID: {user.id}`",color=embedcolor)
+        embed.set_thumbnail(url=user.avatar_url)
+        embed.add_field(name="Balance",value=f"${data[3]}")
+        embed.add_field(name="Total earnings",value=f"${data[4]}")
+        embed.set_footer(text=f"EconomyX v{self.bot.version}",icon_url=self.bot.user.avatar_url)
+        await ctx.send(embed=embed)
     
     @commands.cooldown(1,60,BucketType.user)
     @commands.command(aliases=["start"])
@@ -40,7 +45,7 @@ class player_meta(commands.Cog):
         
     @commands.group(aliases=["c","change","custom"],invoke_without_command=True)
     async def customize(self,ctx):
-        await ctx.send("Usage: `^customize <guild/color>`")     
+        await ctx.send("Usage: `^customize <guild/color>`")
          
     @commands.cooldown(1,60,BucketType.user)
     @customize.command(name="guild")
@@ -90,18 +95,23 @@ class player_meta(commands.Cog):
                 await self.bot.db.commit()
                 await askmessage.edit(content=f"`Success! You now belong to {grabbed_guild.name}!`")
 
-    @commands.cooldown(1,70,BucketType.user)
-    @customize.command()
+    @commands.cooldown(1,40,BucketType.user)
+    @customize.command(aliases=["colour","c"])
     async def color(self,ctx,hexcolor : str = None): # WIP
         data = await self.bot.get_player(ctx.author.id)
         if data is None:
             await ctx.send("You dont have a profile. Try `^register`")
-        hexcolor = hexcolor.upper()
-        newhexcolor = int((f"0x{hexcolor}"),0)
+            return
+        try:
+            hexcolor = hexcolor.upper()
+            newhexcolor = int((f"0x{hexcolor}"),0)
+            embed = discord.Embed(title="<-- Theres a preview of your chosen color!", description=f"**Are you sure you would like to change your profile color to hex value {hexcolor}?**", colour=discord.Color(newhexcolor))
+        except:
+            await ctx.send("There was an error with coverting that hex color. If you need help, try this link: https://htmlcolorcodes.com/color-picker/")
         if hexcolor is None:
             await ctx.send("`Please provide a valid hex color value! (Without the #)`")
+            return
         else:
-            embed = discord.Embed(title="<-- Theres a preview of your chosen color!", description=f"**Are you sure you would like to change your profile color to hex value {hexcolor}?**", colour=discord.Color(newhexcolor))
             askmessage = await ctx.send(embed=embed)
             await askmessage.add_reaction(emoji="\U00002705") # white check mark
 
@@ -116,6 +126,7 @@ class player_meta(commands.Cog):
                     pass
                 mbed = discord.Embed(title="Timed out :(", description=f"Try again?", colour=discord.Colour(0xfcd703))
                 await askmessage.edit(embed=mbed)
+                return
             else:
                 async with ctx.channel.typing():
                     try:
@@ -125,10 +136,6 @@ class player_meta(commands.Cog):
                     await self.bot.db.execute("UPDATE e_users SET profilecolor = ? WHERE id = ?",(hexcolor,ctx.author.id,))
                     await self.bot.db.commit()
                     await ctx.send("`Success! Do ^profile to see your new profile color.`")
-        
-        @color.error()
-        async def color_error(ctx, error):
-            color.reset_cooldown(ctx)
                 
                 
     @commands.command(aliases=["lb"])

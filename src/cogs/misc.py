@@ -13,7 +13,8 @@ from discord.ext.commands import CheckFailure, check
 import aiosqlite
 import inspect
 OWNER_ID = 267410788996743168
-
+# CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL
+# oh and also credit to kal
 
 class HelpCommand(commands.HelpCommand):
     """Sup averwhy hopefully this is all easy to understand."""
@@ -21,10 +22,12 @@ class HelpCommand(commands.HelpCommand):
     # This fires once someone does `<prefix>help`
     async def send_bot_help(self, mapping: Mapping[typing.Optional[commands.Cog], typing.List[commands.Command]]):
         ctx = self.context
-        embed = discord.Embed(title="Bot Help")
-        embed.set_footer(text=f"Do {self.clean_prefix}help [command] for more help")
+        clr = await ctx.bot.get_player_color(ctx.author)
+        if clr is None:
+            clr = discord.Color.sea_green()
+        embed = discord.Embed(title="EconomyX Bot Help", color=clr)
+        embed.set_footer(text=f"Do {self.clean_prefix}help [command]")
         categories = []
-
         for cog, cmds in mapping.items():
             filtered = await self.filter_commands(cmds, sort=True)
             if filtered:
@@ -77,6 +80,9 @@ class HelpCommand(commands.HelpCommand):
 
 
 class misc(commands.Cog):
+    """
+    These are miscellaneous bot commands, primarily meta about the bot.
+    """
     def __init__(self,bot):
         self.bot = bot
 

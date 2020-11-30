@@ -9,6 +9,9 @@ from discord.ext.commands import CheckFailure, check
 OWNER_ID = 267410788996743168
 
 class jobs(commands.Cog):
+    """
+    This is for the work command. More is planned for this.
+    """
     def __init__(self,bot):
         self.bot = bot
     

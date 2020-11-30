@@ -11,6 +11,9 @@ from datetime import datetime
 OWNER_ID = 267410788996743168
 
 class stocks(commands.Cog):
+    """
+    This has all the stocks commands, including the process that calculates the stocks every 5 minutes.
+    """
     def __init__(self, bot):
         self.bot = bot
         self.main_stock_loop.start()
@@ -25,11 +28,11 @@ class stocks(commands.Cog):
             if bruh:
                 amount = random.uniform(0.1,2)
                 amount = round(amount,2)
-                await self.bot.db.execute("UPDATE e_stocks points = (bal + ?) WHERE stockid = ?",(amount, s[0]))
+                await self.bot.db.execute("UPDATE e_stocks SET points = (points + ?) WHERE stockid = ?",(amount, s[0]))
             if not bruh:
                 amount = random.uniform(0.1,2)
                 amount = round(amount,2)
-                await self.bot.db.execute("UPDATE e_stocks points = (bal - ?) WHERE stockid = ?",(amount, s[0]))
+                await self.bot.db.execute("UPDATE e_stocks SET points = (points - ?) WHERE stockid = ?",(amount, s[0]))
         print(f"{len(all_stocks)} stocks updated")
     
     @commands.group(aliases=["stocks","st"], invoke_without_command=True)
@@ -51,7 +54,7 @@ class stocks(commands.Cog):
             embed.add_field(name="Owned stock",value="None")
         else:
             embed.add_field(name="Owned Stock",value=playerstock[1])
-            delta_uptime = datetime.utcnow() - time.strptime(playerstock[5])
+            delta_uptime = datetime.utcnow() - datetime.strptime(playerstock[5],"%Y-%m-%d %H:%M:%S.%f")
             hours, remainder = divmod(int(delta_uptime.total_seconds()), 3600)
             minutes, seconds = divmod(remainder, 60)
             days, hours = divmod(hours, 24)
