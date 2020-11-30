@@ -1,3 +1,5 @@
+from typing import Mapping
+import typing
 import discord
 import platform
 import time
@@ -12,9 +14,79 @@ import aiosqlite
 import inspect
 OWNER_ID = 267410788996743168
 
+
+class HelpCommand(commands.HelpCommand):
+    """Sup averwhy hopefully this is all easy to understand."""
+
+    # This fires once someone does `<prefix>help`
+    async def send_bot_help(self, mapping: Mapping[typing.Optional[commands.Cog], typing.List[commands.Command]]):
+        ctx = self.context
+        embed = discord.Embed(title="Bot Help")
+        embed.set_footer(text=f"Do {self.clean_prefix}help [command] for more help")
+        categories = []
+
+        for cog, cmds in mapping.items():
+            filtered = await self.filter_commands(cmds, sort=True)
+            if filtered:
+                all_commands = " ".join(f"`{c.name}`" for c in cmds)
+                if cog and cog.description:
+                    embed.add_field(name=cog.qualified_name,
+                                    value=f"-> {all_commands}",
+                                    inline=False)
+
+        await ctx.send(embed=embed)
+
+    # This fires once someone does `<prefix>help <cog>`
+    async def send_cog_help(self, cog: commands.Cog):
+        ctx = self.context
+        embed = discord.Embed(title=f"Help for {cog.qualified_name}")
+        embed.set_footer(text=f"Do {self.clean_prefix}help [command] for more help")
+
+        entries = await self.filter_commands(cog.get_commands(), sort=True)
+        for cmd in entries:
+            embed.add_field(name=f"{self.clean_prefix}{cmd.name}",
+                            value=f"{cmd.help}",
+                            inline=False)
+
+        await ctx.send(embed=embed)
+
+    # This fires once someone does `<prefix>help <command>`
+    async def send_command_help(self, command: commands.Command):
+        ctx = self.context
+
+        embed = discord.Embed(title=f"{self.clean_prefix}{command.qualified_name}",
+                              description=f"{command.help}")
+        embed.set_footer(text=f"Do {self.clean_prefix}help [command] for more help")
+
+        await ctx.send(embed=embed)
+
+    # This fires once someone does `<prefix>help <group>`
+    async def send_group_help(self, group: commands.Group):
+        ctx = self.context
+
+        embed = discord.Embed(title=f"{self.clean_prefix}{group.qualified_name}",
+                              description=group.help)
+        embed.set_footer(text=f"Do {self.clean_prefix}help [command] for more help")
+
+        for command in group.commands:
+            embed.add_field(name=f"{self.clean_prefix}{command.name}",
+                            value=command.description,
+                            inline=False)
+
+        await ctx.send(embed=embed)
+
+
 class misc(commands.Cog):
     def __init__(self,bot):
         self.bot = bot
+
+        self.bot._original_help_command = bot.help_command
+
+        bot.help_command = HelpCommand()
+        bot.help_command.cog = self
+    
+    def cog_unload(self):
+        self.bot.help_command = self.bot._original_help_command
     
     @commands.cooldown(1,10,BucketType.channel)
     @commands.command(aliases=["i"])
