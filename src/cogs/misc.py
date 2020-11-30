@@ -44,7 +44,7 @@ class HelpCommand(commands.HelpCommand):
 
         entries = await self.filter_commands(cog.get_commands(), sort=True)
         for cmd in entries:
-            embed.add_field(name=f"{self.clean_prefix}{cmd.name}",
+            embed.add_field(name=f"{self.clean_prefix}{cmd.name} {cmd.signature}",
                             value=f"{cmd.help}",
                             inline=False)
 
@@ -54,7 +54,7 @@ class HelpCommand(commands.HelpCommand):
     async def send_command_help(self, command: commands.Command):
         ctx = self.context
 
-        embed = discord.Embed(title=f"{self.clean_prefix}{command.qualified_name}",
+        embed = discord.Embed(title=f"{self.clean_prefix}{command.qualified_name} {command.signature}",
                               description=f"{command.help}")
         embed.set_footer(text=f"Do {self.clean_prefix}help [command] for more help")
 
@@ -64,12 +64,12 @@ class HelpCommand(commands.HelpCommand):
     async def send_group_help(self, group: commands.Group):
         ctx = self.context
 
-        embed = discord.Embed(title=f"{self.clean_prefix}{group.qualified_name}",
+        embed = discord.Embed(title=f"{self.clean_prefix}{group.qualified_name} {group.signature}",
                               description=group.help)
         embed.set_footer(text=f"Do {self.clean_prefix}help [command] for more help")
 
         for command in group.commands:
-            embed.add_field(name=f"{self.clean_prefix}{command.name}",
+            embed.add_field(name=f"{self.clean_prefix}{command.name} {command.signature}",
                             value=command.description,
                             inline=False)
 
