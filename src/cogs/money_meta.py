@@ -14,7 +14,7 @@ class money_meta(commands.Cog):
     
     @commands.cooldown(1,30,BucketType.user)
     @commands.command(aliases=["payuser"])
-    async def pay(self,ctx, user: discord.User = None, amount: float = None):
+    async def pay(self,ctx, user: discord.User = None, amount = None):
         player = await self.bot.get_player(ctx.author.id)
         if player is None:
             await ctx.send("You dont have a profile! Get one with `^register`.")

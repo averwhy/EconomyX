@@ -14,12 +14,14 @@ class games(commands.Cog):
     
     @commands.cooldown(1,2,BucketType.user)
     @commands.command(aliases=["b"])
-    async def bet(self,ctx,amount: float):
-        amount = float(amount)
+    async def bet(self, ctx, amount):
         player = await self.bot.get_player(ctx.author.id)
         if player is None:
             await ctx.send("You dont have a profile! Get one with `^register`.")
             return
+        if amount.lower() == "all":
+            amount = player[3]
+        amount = float(amount)
         if amount != amount:
             await ctx.send("Thats not a valid amount. Nice try, though")
             return

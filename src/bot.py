@@ -99,7 +99,7 @@ class EcoBot(commands.Bot):
         await bot.db.commit()
        
             
-bot = EcoBot(command_prefix=commands.when_mentioned_or("^","ecox ","ex "),description=desc,intents=discord.Intents(reactions = True, messages = True, guilds = True, members = True))
+bot = EcoBot(command_prefix=commands.when_mentioned_or("^","ecox "),description=desc,intents=discord.Intents(reactions = True, messages = True, guilds = True, members = True))
 
 bot.initial_extensions = ["jishaku","cogs.player_meta","cogs.devtools","cogs.games","cogs.money_meta","cogs.misc","cogs.jobs","cogs.stocks"]
 with open("TOKEN.txt",'r') as t:
@@ -111,6 +111,7 @@ bot.news_set_by = "no one yet.."
 bot.total_command_errors = 0
 bot.total_command_completetions = 0
 bot.launch_time = datetime.utcnow()
+print(bot.launch_time)
 
 
 async def startup():
@@ -118,7 +119,8 @@ async def startup():
     bot.db = await aiosqlite.connect('economyx.db')
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_users (id int, name text, guildid int,bal double, totalearnings double, profilecolor text)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_guilds (id int, name text, bal double, totalearnings double)")
-    await bot.db.execute("CREATE TABLE IF NOT EXISTS e_stocks (stockid int, name text, points double, previouspoints double, ownerid int)")
+    await bot.db.execute("CREATE TABLE IF NOT EXISTS e_stocks (stockid int, name text, points double, previouspoints double, ownerid int, created text)")
+    await bot.db.execute("CREATE TABLE IF NOT EXISTS e_invests (stockid int, userid int, amount double, invested text)")
     print("Database connected")
     
     bot.backup_db = await aiosqlite.connect('ecox_backup.db')
