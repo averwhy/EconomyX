@@ -112,7 +112,7 @@ bot.initial_extensions = ["jishaku","cogs.player_meta","cogs.devtools","cogs.gam
 with open("TOKEN.txt",'r') as t:
     TOKEN = t.readline()
 bot.time_started = time.localtime()
-bot.version = '0.1.1'
+bot.version = '0.1.8'
 bot.newstext = None
 bot.news_set_by = "no one yet.."
 bot.total_command_errors = 0
@@ -127,7 +127,7 @@ async def startup():
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_users (id int, name text, guildid int,bal double, totalearnings double, profilecolor text)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_guilds (id int, name text, bal double, totalearnings double)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_stocks (stockid int, name text, points double, previouspoints double, ownerid int, created text)")
-    await bot.db.execute("CREATE TABLE IF NOT EXISTS e_invests (stockid int, userid int, amount double, invested text)")
+    await bot.db.execute("CREATE TABLE IF NOT EXISTS e_invests (stockid int, userid int, amount double, invested text, stockname text)")
     print("Database connected")
     
     bot.backup_db = await aiosqlite.connect('ecox_backup.db')

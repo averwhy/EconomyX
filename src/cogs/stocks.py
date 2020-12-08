@@ -59,6 +59,21 @@ class stocks(commands.Cog):
             minutes, seconds = divmod(remainder, 60)
             days, hours = divmod(hours, 24)
             embed.add_field(name="Stock Created",value=f"{days}d, {hours}h, {minutes}m, {seconds}s ago")
+        c = await self.bot.db.execute("SELECT * FROM e_invests WHERE userid = ?",(user.id,))
+        playerinvests = await c.fetchall()
+        if playerinvests is None:
+            embed.add_field(name="Invested Stocks",value="None")
+        else:
+            t = ""
+            for i in playerinvests:
+                delta_uptime = datetime.utcnow() - datetime.strptime(i[3],"%Y-%m-%d %H:%M:%S.%f")
+                hours, remainder = divmod(int(delta_uptime.total_seconds()), 3600)
+                minutes, seconds = divmod(remainder, 60)
+                days, hours = divmod(hours, 24)
+                t = t + (f"{i[4]} (`{i[0]}`): {i[1]} points, invested {days}d, {hours}h, {minutes}m, {seconds}s ago")
+            if t == "":
+                t = "None!"
+            embed.add_field(name="Invests",value=t,inline=False)
         await ctx.send(embed=embed)
     
     @stock.command(aliases=["c"])

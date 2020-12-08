@@ -136,6 +136,24 @@ class misc(commands.Cog):
         minutes, seconds = divmod(remainder, 60)
         days, hours = divmod(hours, 24)
         await ctx.send(f"```autohotkey\n{days}d, {hours}h, {minutes}m, {seconds}s\n```")
+        
+    @commands.command()
+    async def ping(self, ctx):
+        em = discord.PartialEmoji(name="loading",animated=True,id=782995523404562432)
+        start = time.perf_counter()
+        message = await ctx.send(embed=discord.Embed(title=f"Ping... {em}",color=discord.Color.random()))
+        end = time.perf_counter()
+        start2 = time.perf_counter()
+        await self.bot.db.commit()
+        end2 = time.perf_counter()
+        duration = round(((end - start) * 1000),1)
+        db_duration = round(((end2 - start2) * 1000),1)
+        newembed = discord.Embed(title="Pong!",color=discord.Color.random())
+        ws = round((self.bot.latency * 1000),1)
+        newembed.add_field(name="Typing",value=f"{duration}ms")
+        newembed.add_field(name="Websocket",value=f"{ws}ms")
+        newembed.add_field(name="Database",value=f"{db_duration}ms")
+        await message.edit(embed=newembed)
 
         
     # CREDIT TO RAPPTZ FOR THIS
