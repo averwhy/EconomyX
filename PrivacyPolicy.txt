@@ -1,0 +1,29 @@
+This document entails the privacy policy and agreement that you accept when adding EconomyX to your guild, or using EconomyX's commands and features.
+This privacy policy applies to the following web applications:
+    - Discord User EconomyX#6119 - Public Bot
+
+Terminology
+    Guild Administrator
+        - Any user who has the permission, ability or access to add or configure EconomyX to a guild.
+    Guild Member
+        - Any user who is a member of a guild which EconomyX is present on.
+    Database
+        - A way of storing data.
+    ID
+        - An identification number, also known as snowflake.
+
+Data Collected By Command
+The following will be collected when an user or guild member runs the command `start`/`register`. This data is not collected automatically. When providing data in this way, you forego any rights to the content of the data provided.
+    - Guild's members ID
+    - Guild's members name
+    - Guild's members guild ID
+
+Data Storage & Protection
+    - All data is stored in an SQLite database. Maximum efforts are taken to keep collected data, as defined above, protected, but absolute security cannot be guaranteed. We are not liable for any damages or stolen information, in which we collect, from users.
+Guild Member Agreement
+    - By being a member of a guild which uses EconomyX's services or features, you are consenting to the policies outlined in this agreement. If you, the guild member, do not agree with any policies outlined in this agreement, you have the right to leave the guild in which this bot is a part of, 
+    or delete your data from the bot using the `start`/`register` command again.
+Guild Administrator Agreement
+    By adding EconomyX to your guild, you are consenting to the policies outlined in this agreement. If you, the guild administrator, do not agree with any of the policies outlined in this agreement, you have the right to remove EconomyX from your guild.
+
+Last Updated: January 3rd, 2021

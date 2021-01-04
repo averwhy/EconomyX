@@ -17,13 +17,10 @@ class money_meta(commands.Cog):
     
     @commands.cooldown(1,30,BucketType.user)
     @commands.command(aliases=["payuser"])
-    async def pay(self,ctx, user: discord.User = None, amount = None):
+    async def pay(self,ctx, user: discord.User, amount):
         player = await self.bot.get_player(ctx.author.id)
         if player is None:
-            await ctx.send("You dont have a profile! Get one with `^register`.")
-            return
-        if amount is None:
-            await ctx.send("Please provide and amount to pay.")
+            await ctx.send("You dont have a profile! Get one with `e$register`.")
             return
         amount = float(amount)
         if player[3] < amount:
@@ -35,6 +32,7 @@ class money_meta(commands.Cog):
             return
         try:
             await self.bot.transfer_money(ctx.author,user,amount)
+            await bot.db.execute("UPDATE e_users SET totalearnings = (totalearnings + ?) WHERE id = ?",(amount,user.id,))
             await ctx.reply("Transfer successful.")
         except Exception as e:
             await ctx.send(f"Something went wrong.\n{e}")
@@ -45,7 +43,7 @@ class money_meta(commands.Cog):
         if user is None:
             data = await self.bot.get_player(ctx.author.id)
             if data is None:
-                await ctx.send("You dont have a profile. Try `^register`")
+                await ctx.send("You dont have a profile. Try `e$register`")
                 return
             await ctx.send(f"{str(ctx.author)}'s balance: ${data[3]}")
         if user is not None:

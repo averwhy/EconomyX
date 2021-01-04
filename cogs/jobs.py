@@ -15,14 +15,15 @@ class jobs(commands.Cog):
     def __init__(self,bot):
         self.bot = bot
     
-    @commands.cooldown(1,600,BucketType.user)
+    @commands.cooldown(1,330,BucketType.user)
     @commands.command(aliases=["w"])
     async def work(self,ctx):
+        """Work. You earn a random number between 1 and 500."""
         player = await self.bot.get_player(ctx.author.id)
         if player is None:
-            await ctx.send("You dont have a profile! Get one with `^register`.")
+            await ctx.send("You dont have a profile! Get one with `e$register`.")
             return
-        pay = random.randint(5,400)
+        pay = random.randint(1,500)
         if pay > 350:
             await ctx.send(f"You worked and got paid ${pay}.\nDamn, you must be good at what you do.")
         elif pay > 300:
@@ -40,6 +41,7 @@ class jobs(commands.Cog):
         else:
             await ctx.send(f"You worked and got paid ${pay}.\nDamn, did you sleep on the job?")
         await self.bot.db.execute("UPDATE e_users SET bal = (bal + ?) WHERE id = ?",(pay, ctx.author.id,))
+        await self.bot.db.execute("UPDATE e_users SET totalearnings = (totalearnings + ?) WHERE id = ?",(pay,ctx.author.id,))
         await self.bot.db.commit()
 
         

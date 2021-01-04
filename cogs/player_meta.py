@@ -14,14 +14,14 @@ class player_meta(commands.Cog):
     def __init__(self,bot):
         self.bot = bot
     
-    @commands.cooldown(1,15,BucketType.user)
+    @commands.cooldown(1,5,BucketType.user)
     @commands.command(aliases=["p"])
     async def profile(self,ctx,user: discord.User = None):
         if user is None:
             user = ctx.author
         data = await self.bot.get_player(user.id)
         if data is None:
-            await ctx.send("You dont have a profile. Try `^register`")
+            await ctx.send("You dont have a profile. Try `e$register`")
             return
         embedcolor = int(("0x"+data[5]),0)
         embed = discord.Embed(title=f"{str(user)}'s Profile",description=f"`ID: {user.id}`",color=embedcolor)
@@ -32,27 +32,28 @@ class player_meta(commands.Cog):
         await ctx.send(embed=embed)
     
     @commands.cooldown(1,60,BucketType.user)
-    @commands.command(aliases=["start"])
+    @commands.command(aliases=["start","open"])
     async def register(self,ctx):
         async with ctx.channel.typing():
             await asyncio.sleep(0.5)
             data = await self.bot.usercheck(ctx.author.id)
-            if data:
-                await ctx.send(f"Youre already in the database, {ctx.author.mention}")
+            if not data:
+                msg = await self.bot.add_player(ctx.author)
+                await ctx.send(msg)
                 return
-            msg = await self.bot.add_player(ctx.author)
-            await ctx.send(msg)
+        msg2 = await ctx.send(f"Youre already in the database, {ctx.author.mention}\nIf you would like, i can purge your data from the database.\nSay `Yes` if you would like to start this process.")
+        await self.bot.begin_user_deletion(ctx, msg2)
         
     @commands.group(aliases=["c","change","custom"],invoke_without_command=True)
     async def customize(self,ctx):
-        await ctx.send("Usage: `^customize <guild/color>`")
+        await ctx.send("Usage: `e$customize <guild/color>`")
          
     @commands.cooldown(1,60,BucketType.user)
     @customize.command(name="guild")
     async def gld(self, ctx, newguild: int = None):
         data = await self.bot.get_player(ctx.author.id)
         if data is None:
-            await ctx.send("You dont have a profile. Try `^register`")
+            await ctx.send("You dont have a profile. Try `e$register`")
         if newguild is None:
             askmessage = await ctx.send(f"`Are you sure you want to change your guild to this server?`")
             await askmessage.add_reaction(emoji="\U00002705") # white check mark
@@ -100,7 +101,7 @@ class player_meta(commands.Cog):
     async def color(self,ctx,hexcolor : str = None): # WIP
         data = await self.bot.get_player(ctx.author.id)
         if data is None:
-            await ctx.send("You dont have a profile. Try `^register`")
+            await ctx.send("You dont have a profile. Try `e$register`")
             return
         try:
             hexcolor = hexcolor.upper()
@@ -135,8 +136,7 @@ class player_meta(commands.Cog):
                         await askmessage.delete() # we'll just delete our message /shrug
                     await self.bot.db.execute("UPDATE e_users SET profilecolor = ? WHERE id = ?",(hexcolor,ctx.author.id,))
                     await self.bot.db.commit()
-                    await ctx.send("`Success! Do ^profile to see your new profile color.`")
-                
+                    await ctx.send("`Success! Do e$profile to see your new profile color.`")     
                 
     @commands.command(aliases=["lb"])
     async def leaderboard(self,ctx):
@@ -154,8 +154,6 @@ class player_meta(commands.Cog):
                 await asyncio.sleep(0.1)
                 embed.add_field(name=f"{i[1]}",value=f"${i[3]}",inline=False)
             await ctx.send(embed=embed)
-            
-        
         
 def setup(bot):
     bot.add_cog(player_meta(bot))

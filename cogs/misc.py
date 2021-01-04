@@ -7,14 +7,16 @@ import random
 import asyncio
 import re, os
 from datetime import datetime
-from discord.ext import commands
+from discord.ext import commands, menus
 from discord.ext.commands.cooldowns import BucketType
 from discord.ext.commands import CheckFailure, check
 import aiosqlite
 import inspect
+from .utils import botmenus
 OWNER_ID = 267410788996743168
 # CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL
 # oh and also credit to kal
+# await kal.credit()
 
 class HelpCommand(commands.HelpCommand):
     """Sup averwhy hopefully this is all easy to understand."""
@@ -85,17 +87,24 @@ class misc(commands.Cog):
     """
     def __init__(self,bot):
         self.bot = bot
-
         self.bot._original_help_command = bot.help_command
-
         bot.help_command = HelpCommand()
         bot.help_command.cog = self
+        
+        with open("PrivacyPolicy.txt",'r') as t:
+            self.pp = []
+            fulltext = t.read()
+            splice_1 = fulltext[0:606]
+            splice_2 = fulltext[606:1922]
+            splice_3 = fulltext[1922:len(fulltext)]
+            for o in [splice_1, splice_2, splice_3]:
+                self.pp.append(o)
     
     def cog_unload(self):
         self.bot.help_command = self.bot._original_help_command
     
     @commands.cooldown(1,10,BucketType.channel)
-    @commands.command(aliases=["i"])
+    @commands.command(aliases=["information"])
     async def info(self,ctx):
         data2 = await self.bot.get_player(ctx.author.id)
         if data2 is None:
@@ -106,12 +115,22 @@ class misc(commands.Cog):
         money_total = await c.fetchone()
         c = await self.bot.db.execute("SELECT COUNT(id) FROM e_users")
         total_db_users = await c.fetchone()
-        desc = f"""__**Developed by averwhy#3899**__
-        **Guilds:** {len(self.bot.guilds)}
+        c = await self.bot.db.execute("SELECT COUNT(*) FROM e_stocks")
+        total_stocks = await c.fetchone()
+        c = await self.bot.db.execute("SELECT SUM(invested) FROM e_invests")
+        total_invested = await c.fetchone()
+        c = await self.bot.db.execute("SELECT COUNT(*) FROM e_invests")
+        num_invested = await c.fetchone()
+        desc = f"""**Guilds:** {len(self.bot.guilds)}
         **Total Users:** {len(self.bot.users)}
+        **Commands:** {len(self.bot.commands)}
         **Current Money Total:** ${money_total[0]}
+        **Total Stocks:** {total_stocks[0]}
+        **Total number of invests:** {num_invested[0]}
+        **Total money invested in stocks:** ${total_invested[0]}
         **Number of users in database:** {total_db_users[0]}
         **Database changes in this session:** {self.bot.db.total_changes}
+        **Active database transaction:** {self.bot.db.in_transaction}
         """
         embed = discord.Embed(title="EconomyX Info",description=desc,color=color)
         embed.set_footer(text=f"Made with Python {platform.python_version()}, enchanced discord.py {discord.__version__}, and aiosqlite {aiosqlite.__version__}",icon_url="https://images-ext-1.discordapp.net/external/0KeQjRAKFJfVMXhBKPc4RBRNxlQSiieQtbSxuPuyfJg/http/i.imgur.com/5BFecvA.png")
@@ -161,7 +180,7 @@ class misc(commands.Cog):
     @commands.command()
     async def source(self, ctx, *, command: str = None):
         source_url = 'https://github.com/averwhy/EconomyX'
-        branch = 'main/src'
+        branch = 'main'
         if command is None:
             return await ctx.send(source_url)
         
@@ -176,8 +195,6 @@ class misc(commands.Cog):
             if obj is None:
                 return await ctx.send('Could not find command.')
 
-            # since we found the command we're looking for, presumably anyway, let's
-            # try to access the code itself
             src = obj.callback.__code__
             module = obj.callback.__module__
             filename = src.co_filename
@@ -192,7 +209,10 @@ class misc(commands.Cog):
         final_url = f'<{source_url}/blob/{branch}/{location}#L{firstlineno}-L{firstlineno + len(lines) - 1}>'
         await ctx.send(final_url)
 
-        
+    @commands.command(aliases=["pp","privacypolicy"])
+    async def privacy_policy(self, ctx):
+        p = menus.MenuPages(source=botmenus.PPSource(self.pp), clear_reactions_after=True)
+        await p.start(ctx)
 
         
 def setup(bot):

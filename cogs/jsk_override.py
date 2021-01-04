@@ -8,7 +8,6 @@ from collections import namedtuple
 
 EmojiSettings = namedtuple('EmojiSettings', 'start back forward end close')
 
-
 class FakeEmote(discord.PartialEmoji):
     """
     Due to the nature of jishaku checking if an emoji object is the reaction, passing raw str into it will not work.
@@ -20,7 +19,6 @@ class FakeEmote(discord.PartialEmoji):
         a, name, id = emoji_name.split(":")
         return cls(name=name, id=int(id), animated=bool(a))
 
-
 emote = EmojiSettings(
     start=FakeEmote.from_name("<a:loading:782995523404562432>"),
     back=FakeEmote.from_name("<:before_check:754948796487565332>"),
@@ -29,7 +27,6 @@ emote = EmojiSettings(
     close=FakeEmote.from_name("<:redTick:596576672149667840>")
 )
 jishaku.paginators.EMOJI_DEFAULT = emote  # Overrides jishaku emojis
-
 
 async def attempt_add_reaction(msg: discord.Message, reaction: Union[str, discord.Emoji]):
     """
@@ -47,9 +44,7 @@ async def attempt_add_reaction(msg: discord.Message, reaction: Union[str, discor
     with contextlib.suppress(discord.HTTPException):
         return await msg.add_reaction(react)
 
-
 jishaku.exception_handling.attempt_add_reaction = attempt_add_reaction
-
 
 def setup(bot):
     pass

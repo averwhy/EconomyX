@@ -74,56 +74,13 @@ class devtools(commands.Cog):
         except Exception as e:
             await ctx.message.add_reaction("\U0000274c")
             await ctx.send(f"`{e}`")
-            
-    # @dev.command(aliases=["userban"])
-    # async def ban(self, ctx, user1: discord.User = None, *, reason = None):
-    #     if user1 is None:
-    #         await ctx.send("`You must provide an user ID/Mention!`")
-    #     else:
-    #         data = await grab_db_user(user1.id)
-    #         askmessage = await ctx.send(f"`Are you sure you want to ban` {user1.name} `({user1.id})?`")
-    #         await askmessage.add_reaction(emoji="\U00002705") # white check mark
-            
-    #         def check(reaction, user):
-    #             return user == ctx.message.author and str(reaction.emoji) == "\U00002705"
-    #         try:
-    #             reaction, user = await self.bot.wait_for('reaction_add', timeout=secondstoReact, check=check)
-    #         except asyncio.TimeoutError:
-    #             await askmessage.edit(content="`Timed out.`")
-    #         else:
-    #             dbuser = db_user()
-    #             await dbuser.db_ban(userobject=user1,reason=reason)
-    #             await ctx.send(f"`Banned {user1.name}!`")
-    #             banlogs = self.bot.get_channel(771008991748554775)
-    #             if banlogs is None:
-    #                 banlogs = await self.bot.fetch_channel(771008991748554775)
-    #             await banlogs.send(f"__**User ban**__\n**User:** {str(user1)}\n**ID:** {user1.id}\n**Reason:** {reason}\n \n**Banned by:** {ctx.author.mention}")
-
-    # @dev.command(aliases=["userunban"])
-    # async def unban(self, ctx,user: discord.User = None):
-    #     if user is None:
-    #         await ctx.send("`You must provide an user ID/Mention!`")
-    #     else:
-    #         async with aiosqlite.connect('fishypy.db') as db:
-    #             c = await db.execute("SELECT * FROM bannedusers WHERE userid = ?",(user.id,))
-    #             data = await c.fetchone()
-    #             if data is None:
-    #                 await ctx.send("`That user does not appear to be banned.`")
-    #             else:
-    #                 await db.execute("DELETE FROM bannedusers WHERE userid = ?",(user.id,))
-    #                 await db.commit()
-    #                 banlogs = self.bot.get_channel(771008991748554775)
-    #                 if banlogs is None:
-    #                     banlogs = await self.bot.fetch_channel(771008991748554775)
-    #                 await banlogs.send(f"__**User unban**__\n**User:** {str(user)}\n**ID:** {user.id}\n \n**Unbanned by:** {ctx.author.mention}")
-    #                 await ctx.message.add_reaction("\U00002705")
 
     @dev.command()
     async def stop(self, ctx):
         askmessage = await ctx.send("`you sure?`")
         def check(m):
             newcontent = m.content.lower()
-            return newcontent == 'yea' and m.channel == ctx.channel
+            return newcontent == 'yea' and m.channel == ctx.channel and m.author.id == OWNER_ID
         try:
             await self.bot.wait_for('message', timeout=5, check=check)
         except asyncio.TimeoutError:
@@ -185,12 +142,8 @@ class devtools(commands.Cog):
         await ctx.send("Reset.")
         
     @eco.command()
-    async def give(self, ctx, user: discord.User = None, amount: float = None):
-        if user is None:
-            await ctx.send("Provide an user.")
-            return
-        if amount is None:
-            await ctx.send("Provide an amount.")
+    async def give(self, ctx, user: discord.User, amount):
+        amount = float(amount)
         player = await self.bot.get_player(user.id)
         if player is None:
             await ctx.send("They're not even in the database...")
@@ -222,7 +175,7 @@ class devtools(commands.Cog):
             await self.bot.db.backup(self.bot.backup_db)
             await self.bot.backup_db.commit()
             await self.bot.backup_db.close()
-            await ctx.send("The database was backed up successfully.")
+            await ctx.send("done, lol")
             return
         except Exception as e:
             await ctx.send(f"An error occured while backing up the database:\n`{e}`")
