@@ -106,6 +106,7 @@ class misc(commands.Cog):
     @commands.cooldown(1,10,BucketType.channel)
     @commands.command(aliases=["information"])
     async def info(self,ctx):
+        """Shows bot information and statistics."""
         data2 = await self.bot.get_player(ctx.author.id)
         if data2 is None:
             color = discord.Color.teal()
@@ -140,6 +141,7 @@ class misc(commands.Cog):
     @commands.cooldown(1,5,BucketType.user)
     @commands.command()
     async def invite(self,ctx):
+        """Returns a link that you can use to invite EconomyX to your server."""
         data2 = await self.bot.get_player(ctx.author.id)
         if data2 is None:
             color = discord.Color.teal()
@@ -150,6 +152,7 @@ class misc(commands.Cog):
     @commands.cooldown(1,10,BucketType.user)
     @commands.command()
     async def uptime(self, ctx):
+        """Shows the uptime for EconomyX"""
         delta_uptime = datetime.utcnow() - self.bot.launch_time
         hours, remainder = divmod(int(delta_uptime.total_seconds()), 3600)
         minutes, seconds = divmod(remainder, 60)
@@ -158,6 +161,7 @@ class misc(commands.Cog):
         
     @commands.command()
     async def ping(self, ctx):
+        """Shows EconomyX's latency/connection to Discord."""
         em = discord.PartialEmoji(name="loading",animated=True,id=782995523404562432)
         start = time.perf_counter()
         message = await ctx.send(embed=discord.Embed(title=f"Ping... {em}",color=discord.Color.random()))
@@ -177,7 +181,7 @@ class misc(commands.Cog):
         
     # CREDIT TO RAPPTZ FOR THIS
     # https://github.com/Rapptz/RoboDanny/blob/rewrite/cogs/meta.py#L355-L393
-    @commands.command()
+    @commands.command(description="Gets the source on github for any command.")
     async def source(self, ctx, *, command: str = None):
         source_url = 'https://github.com/averwhy/EconomyX'
         branch = 'main'
@@ -185,7 +189,7 @@ class misc(commands.Cog):
             return await ctx.send(source_url)
         
         if command == 'help':
-            await ctx.send("The help command is built into discord.py. However, the code for that can be found here:\n<https://github.com/Rapptz/discord.py/blob/master/discord/ext/commands/help.py>")
+            await ctx.send("<https://github.com/averwhy/EconomyX/blob/main/cogs/misc.py#L21-L81>")
             return
         if command == 'jsk' or command == 'jishaku':
             await ctx.send("Jishaku is a debug and testing command made for discord.py. The code can be found here:\n<https://github.com/Gorialis/jishaku>")
@@ -211,6 +215,7 @@ class misc(commands.Cog):
 
     @commands.command(aliases=["pp","privacypolicy"])
     async def privacy_policy(self, ctx):
+        """An interactive command to view EconomyX's Privacy Policy."""
         p = menus.MenuPages(source=botmenus.PPSource(self.pp), clear_reactions_after=True)
         await p.start(ctx)
 

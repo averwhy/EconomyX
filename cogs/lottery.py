@@ -1,15 +1,12 @@
 import discord
 import platform
 import time
-import random
 import asyncio
-import re, os
 from datetime import datetime, timedelta
 from discord.ext import commands, menus
 from discord.ext.commands.cooldowns import BucketType
 from discord.ext.commands import CheckFailure, check
 import aiosqlite
-import inspect
 
 class lottery(commands.Cog):
     def __init__(self, bot):
@@ -21,9 +18,18 @@ class lottery(commands.Cog):
         c  = await self.bot.db.execute("select * from e_lottery_main")
         lotterystamp = (await c.fetchone())[1]
         piss = datetime.strptime(lotterystamp,"%Y-%m-%d %H:%M:%S.%f")
-        cum = datetime.utcnow()
-        diff = (piss - cum) / timedelta(seconds=1)
+        shit = datetime.utcnow()
+        diff = (piss - shit) / timedelta(seconds=1)
         await self.bot.db.commit()
+        if diff > 0:
+            #That would be in the future, dont draw
+            return
+        if diff < -1800:
+            # -1800 seconds would be 30 mins (we want to draw every 30 mins)
+            # So, lets draw, then reset
+            c = await self.bot.db.execute("SELECT * FROM e_lottery_users ORDER BY RANDOM()")
+            winningplayer = await c.fetchone()
+            
         
         
     @commands.group()

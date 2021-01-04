@@ -33,6 +33,10 @@ class stocks(commands.Cog):
             if not bruh:
                 amount = random.uniform(0.1,2)
                 amount = round(amount,1)
+                if (s[2] - amount) < 0:
+                    amount = 0 # we dont want it to go negative
+                else:
+                    await self.bot.db.execute("UPDATE e_stocks SET points = (points + ?) WHERE stockid = ?",(amount, s[0]))
                 await self.bot.db.execute("UPDATE e_stocks SET points = (points - ?) WHERE stockid = ?",(amount, s[0]))
         print(f"{len(all_stocks)} stocks updated")
     
