@@ -22,18 +22,19 @@ class stocks(commands.Cog):
     async def main_stock_loop(self):
         await self.bot.wait_until_ready()
         await asyncio.sleep(1)
-        c = await self.bot.db.execute("SELECT stockid, points FROM e_stocks")
+        c = await self.bot.db.execute("SELECT * FROM e_stocks")
         all_stocks = await c.fetchall()
         for s in all_stocks:
             bruh = random.choice([True, False]) # true = add, false = subtract
             if bruh:
-                amount = random.uniform(0.1,2)
+                amount = random.uniform(0.1,1.5)
                 amount = round(amount,1)
                 await self.bot.db.execute("UPDATE e_stocks SET points = (points + ?) WHERE stockid = ?",(amount, s[0]))
             if not bruh:
-                amount = random.uniform(0.1,2)
+                amount = random.uniform(0.1,1.5)
                 amount = round(amount,1)
-                if (s[2] - amount) < 0:
+                cv = s[2] # current value
+                if (cv - amount) < 0:
                     amount = 0 # we dont want it to go negative
                 else:
                     await self.bot.db.execute("UPDATE e_stocks SET points = (points + ?) WHERE stockid = ?",(amount, s[0]))
@@ -42,7 +43,7 @@ class stocks(commands.Cog):
     
     @commands.command(aliases=["port","pf"])
     async def portfolio(self, ctx, user: discord.User = None):
-        """Views a players stock portfolio."""
+        """Views a players stock portfolio. Includes all investments, and owned stocks."""
         player = await self.bot.get_player(ctx.author.id)
         if player is None:
             await ctx.send("You dont have a profile! Get one with `e$register`.")
@@ -67,7 +68,7 @@ class stocks(commands.Cog):
             t = ""
             for i in playerinvests:
                 tl = self.bot.utc_calc(i[5])
-                t = t + (f"{i[3]} [`{i[0]}]: invested ${i[2]} at {round(i[4],1)} points `{tl[0]}d, {tl[1]}h, {tl[2]}m, {tl[3]}s ago")
+                t = t + (f"{i[3]} [`{i[0]}`]: invested ${i[2]} at {round(i[4],1)} points {tl[0]}d, {tl[1]}h, {tl[2]}m, {tl[3]}s ago")
             if t == "":
                 t = "None!"
             embed.add_field(name="Invests",value=t,inline=False)
@@ -99,7 +100,7 @@ class stocks(commands.Cog):
             counter += 1
         await ctx.send(embed=embed)
     
-    @stock.command()
+    @stock.command(description="Alias for the `portfolio` command.")
     async def view(self, ctx, user: discord.User = None):
         await stocks.portfolio(self, ctx, user)
     

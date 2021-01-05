@@ -28,14 +28,12 @@ class lottery(commands.Cog):
             # -1800 seconds would be 30 mins (we want to draw every 30 mins)
             # So, lets draw, then reset
             c = await self.bot.db.execute("SELECT * FROM e_lottery_users ORDER BY RANDOM()")
-            winningplayer = await c.fetchone()
-            
-        
+            winningplayer = await c.fetchone()     
         
     @commands.group()
     async def _lottery(self, ctx):
-        c = await self.bot.db.execute("SELECT COUNT(*) FROM e_lottery_users")
-    
+        await self.bot.db.execute("SELECT * FROM e_lottery_users")
+        
     @lottery.command()
     async def buy(self, ctx):
         player = await self.bot.get_player(ctx.author.id)

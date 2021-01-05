@@ -192,7 +192,7 @@ async def startup():
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_users (id int, name text, guildid int, bal double, totalearnings double, profilecolor text, lotterieswon int)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_stocks (stockid int, name text, points double, previouspoints double, ownerid int, created text)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_invests (stockid int, userid int, invested double, stockname text, invested_at double, invested_date blob)")
-    await bot.db.execute("CREATE TABLE IF NOT EXISTS e_lottery_users (userid int, amount double, boughtwhen blob)")
+    await bot.db.execute("CREATE TABLE IF NOT EXISTS e_lottery_users (userid int, username text, amount double, boughtwhen blob)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_lottery_main (amountpooled double, drawingwhen blob)")
     print("Database connected")
     
