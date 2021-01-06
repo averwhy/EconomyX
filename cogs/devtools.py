@@ -180,5 +180,12 @@ class devtools(commands.Cog):
         except Exception as e:
             await ctx.send(f"An error occured while backing up the database:\n`{e}`")
             return
+        
+    @dev.command(hidden=True,name="stream")
+    async def streamingstatus(self, ctx, *, name):
+        if ctx.author.id != 267410788996743168:
+            return
+        await self.bot.change_presence(activity=discord.Streaming(name=name,url="https://twitch.tv/monstercat/"))
+        await ctx.send("aight, done")
 def setup(bot):
     bot.add_cog(devtools(bot))

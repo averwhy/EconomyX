@@ -18,20 +18,19 @@ class stocks(commands.Cog):
         self.bot = bot
         self.main_stock_loop.start()
         
-    @tasks.loop(seconds=299)
+    @tasks.loop(seconds=600)
     async def main_stock_loop(self):
         await self.bot.wait_until_ready()
-        await asyncio.sleep(1)
         c = await self.bot.db.execute("SELECT * FROM e_stocks")
         all_stocks = await c.fetchall()
         for s in all_stocks:
             bruh = random.choice([True, False]) # true = add, false = subtract
             if bruh:
-                amount = random.uniform(0.1,1.5)
+                amount = random.uniform(0.1,1)
                 amount = round(amount,1)
                 await self.bot.db.execute("UPDATE e_stocks SET points = (points + ?) WHERE stockid = ?",(amount, s[0]))
             if not bruh:
-                amount = random.uniform(0.1,1.5)
+                amount = random.uniform(0.1,1)
                 amount = round(amount,1)
                 cv = s[2] # current value
                 if (cv - amount) < 0:
@@ -232,6 +231,7 @@ class stocks(commands.Cog):
         #(stockid int, userid int, invested double, stockname text, invested_at double, invested_date blob)
         rn = datetime.utcnow()
         await self.bot.db.execute("INSERT INTO e_invests VALUES (?, ?, ?, ?, ?, ?)",(stock[0], ctx.author.id, amount, stock[1], stock[2],rn,))
+        await self.bot.db.execute("UPDATE e_users SET bal = (bal - ?) WHERE id = ?",(amount,ctx.author.id,))
         await ctx.send(f"Invested ${amount} in **{stock[1]}** at {stock[2]} points!")
         
     @invest.command(invoke_without_command=True, description="Sells an investment.\nThe money you earn back is calculated like this: `money_to_pay = ((current_stock_points - points_at_investment) / 10) * amount_invested`")

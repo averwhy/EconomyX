@@ -184,6 +184,7 @@ bot.news_set_by = "no one yet.."
 bot.total_command_errors = 0
 bot.total_command_completetions = 0
 bot.launch_time = datetime.utcnow()
+bot.maintenence = False
 print(bot.launch_time)
 
 
@@ -193,7 +194,7 @@ async def startup():
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_stocks (stockid int, name text, points double, previouspoints double, ownerid int, created text)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_invests (stockid int, userid int, invested double, stockname text, invested_at double, invested_date blob)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_lottery_users (userid int, username text, amount double, boughtwhen blob)")
-    await bot.db.execute("CREATE TABLE IF NOT EXISTS e_lottery_main (amountpooled double, drawingwhen blob)")
+    await bot.db.execute("CREATE TABLE IF NOT EXISTS e_lottery_main (amountpooled double, drawingwhen blob, drawingnum int)")
     print("Database connected")
     
     bot.backup_db = await aiosqlite.connect('ecox_backup.db')
@@ -213,10 +214,23 @@ async def on_command_completion(command):
     await bot.db.commit() # just cuz
     bot.total_command_completetions += 1
     
+class MaintenenceActive(commands.CheckFailure):
+    pass
+    
+@bot.check
+async def maintenence_mode(ctx):
+    print(f"maintenence is {bot.maintenence}")
+    print(f"author id is {ctx.author.id} and 267410788996743168")
+    if bot.maintenence and ctx.author.id != 267410788996743168:
+        raise MaintenenceActive()
+    
 @bot.event
 async def on_command_error(ctx, error): # this is an event that runs when there is an error
-    if isinstance(error, discord.ext.commands.errors.CommandNotFound):
-        #await ctx.message.add_reaction("\U00002753") # red question mark         
+    # if isinstance(error, MaintenenceActive):
+    #     print("hi")
+    #     embed = discord.Embed(description="Sorry, but maintenence mode is active. EconomyX will be back soon!",color=discord.Color(0xffff00))
+    #     await ctx.send(embed=embed, delete_after=60)
+    if isinstance(error, discord.ext.commands.errors.CommandNotFound):      
         return
     elif isinstance(error, discord.ext.commands.errors.CommandOnCooldown): 
         s = round(error.retry_after,2)
@@ -235,7 +249,7 @@ async def on_command_error(ctx, error): # this is an event that runs when there 
         await msgtodelete.delete()
         return
     elif isinstance(error, commands.CheckFailure):
-        # these will be handled in cogs
+        # these should be handled in cogs
         return
     else:
         bot.total_command_errors += 1
@@ -252,4 +266,5 @@ for cog in bot.initial_extensions:
         print(f"Failed to load {cog}, error:\n", file=sys.stderr)
         traceback.print_exc()
 asyncio.set_event_loop(asyncio.SelectorEventLoop())
+
 bot.run(TOKEN, bot = True, reconnect = True)
