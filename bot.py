@@ -219,17 +219,17 @@ class MaintenenceActive(commands.CheckFailure):
     
 @bot.check
 async def maintenence_mode(ctx):
-    print(f"maintenence is {bot.maintenence}")
-    print(f"author id is {ctx.author.id} and 267410788996743168")
     if bot.maintenence and ctx.author.id != 267410788996743168:
         raise MaintenenceActive()
+        return False
+    return True
+    
     
 @bot.event
 async def on_command_error(ctx, error): # this is an event that runs when there is an error
-    # if isinstance(error, MaintenenceActive):
-    #     print("hi")
-    #     embed = discord.Embed(description="Sorry, but maintenence mode is active. EconomyX will be back soon!",color=discord.Color(0xffff00))
-    #     await ctx.send(embed=embed, delete_after=60)
+    if isinstance(error, MaintenenceActive):
+        embed = discord.Embed(description="Sorry, but maintenence mode is active. EconomyX will be back soon!",color=discord.Color(0xffff00))
+        await ctx.send(embed=embed, delete_after=60)
     if isinstance(error, discord.ext.commands.errors.CommandNotFound):      
         return
     elif isinstance(error, discord.ext.commands.errors.CommandOnCooldown): 

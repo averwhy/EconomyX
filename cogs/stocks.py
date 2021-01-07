@@ -25,19 +25,16 @@ class stocks(commands.Cog):
         all_stocks = await c.fetchall()
         for s in all_stocks:
             bruh = random.choice([True, False]) # true = add, false = subtract
+            amount = random.uniform(0.1,0.5)
+            amount = round(amount,2)
             if bruh:
-                amount = random.uniform(0.1,1)
-                amount = round(amount,1)
                 await self.bot.db.execute("UPDATE e_stocks SET points = (points + ?) WHERE stockid = ?",(amount, s[0]))
             if not bruh:
-                amount = random.uniform(0.1,1)
-                amount = round(amount,1)
                 cv = s[2] # current value
                 if (cv - amount) < 0:
                     amount = 0 # we dont want it to go negative
                 else:
-                    await self.bot.db.execute("UPDATE e_stocks SET points = (points + ?) WHERE stockid = ?",(amount, s[0]))
-                await self.bot.db.execute("UPDATE e_stocks SET points = (points - ?) WHERE stockid = ?",(amount, s[0]))
+                    await self.bot.db.execute("UPDATE e_stocks SET points = (points - ?) WHERE stockid = ?",(amount, s[0]))
         print(f"{len(all_stocks)} stocks updated")
     
     @commands.command(aliases=["port","pf"])
@@ -232,9 +229,13 @@ class stocks(commands.Cog):
         rn = datetime.utcnow()
         await self.bot.db.execute("INSERT INTO e_invests VALUES (?, ?, ?, ?, ?, ?)",(stock[0], ctx.author.id, amount, stock[1], stock[2],rn,))
         await self.bot.db.execute("UPDATE e_users SET bal = (bal - ?) WHERE id = ?",(amount,ctx.author.id,))
+        amount = random.uniform(0.1,0.5)
+        amount = round(amount,2)
+        await self.bot.execute("UPDATE e_stocks SET points = (points + ?) WHERE stockid = ?",(amount, name_or_id,))
+        await self.bot.execute("UPDATE e_stocks SET points = (points + ?) WHERE stockname = ?",(amount, name_or_id,))
         await ctx.send(f"Invested ${amount} in **{stock[1]}** at {stock[2]} points!")
         
-    @invest.command(invoke_without_command=True, description="Sells an investment.\nThe money you earn back is calculated like this: `money_to_pay = ((current_stock_points - points_at_investment) / 10) * amount_invested`")
+    @invest.command(invoke_without_command=True, description="Sells an investment.\nThe money you earn back is calculated like this: `money_to_pay = (current_stock_points - points_at_investment) * amount_invested`")
     async def sell(self, ctx, name_or_id):
         name_or_id = name_or_id.upper()
         player = await self.bot.get_player(ctx.author.id)
@@ -263,7 +264,7 @@ class stocks(commands.Cog):
         amount_invested = investment[2]
         money_to_pay = (current_stock_points - points_at_investment) * amount_invested
         if money_to_pay > 0:
-            msg = await ctx.send(f"${round(money_to_pay,2)} will be depositied into your account.\nYou invested ${round(amount_invested,2)}.\nThis is a net **profit** of ${round((money_to_pay - amount_invested),2)}\n**Are you sure you want to sell your investment?**")
+            msg = await ctx.send(f"${round(money_to_pay,2)} will be depositied into your account.\nYou invested ${round(amount_invested,2)}, at {points_at_investment} points.\nThis is a net **profit** of ${round((money_to_pay - amount_invested),2)}\n**Are you sure you want to sell your investment?**")
             await msg.add_reaction("✅")
             def check(reaction, user): 
                 return reaction.emoji == '✅' and user == ctx.author
@@ -275,11 +276,14 @@ class stocks(commands.Cog):
                 await self.bot.db.execute("UPDATE e_users SET bal = (bal + ?) WHERE id = ?",(round(money_to_pay,2), ctx.author.id,))
                 await self.bot.db.execute("DELETE FROM e_invests WHERE userid = ? AND stockid = ?",(ctx.author.id, name_or_id,))
                 await self.bot.db.execute("DELETE FROM e_invests WHERE userid = ? AND stockname = ?",(ctx.author.id, name_or_id,))
-                await self.bot.db.commit()
+                amount = random.uniform(0.1,0.5)
+                amount = round(amount,2)
+                await self.bot.execute("UPDATE e_stocks SET points = (points - ?) WHERE stockid = ?",(amount, name_or_id,))
+                await self.bot.execute("UPDATE e_stocks SET points = (points - ?) WHERE stockname = ?",(amount, name_or_id,))
                 try: await ctx.reply('👍')
                 except: await ctx.send('👍')
         elif money_to_pay < 0:
-            msg = await ctx.send(f"${round(money_to_pay,2)} will be taken from your account.\nYou invested ${round(amount_invested,2)}.\nThis is a net **loss** of ${round((money_to_pay - amount_invested),2)}\n**Are you sure you want to sell your investment?**")
+            msg = await ctx.send(f"${round(money_to_pay,2)} will be taken from your account.\nYou invested ${round(amount_invested,2)}, at {points_at_investment} points.\nThis is a net **loss** of ${round((money_to_pay - amount_invested),2)}\n**Are you sure you want to sell your investment?**")
             await msg.add_reaction("✅")
             def check(reaction, user): 
                 return reaction.emoji == '✅' and user == ctx.author
@@ -289,14 +293,39 @@ class stocks(commands.Cog):
                 await msg.edit(content="Timeout. Your investment was not sold.")
             else:
                 await self.bot.db.execute("UPDATE e_users SET bal = (bal + ?) WHERE id = ?",(round(money_to_pay,2), ctx.author.id,))
-                await bot.db.execute("UPDATE e_users SET totalearnings = (totalearnings + ?) WHERE id = ?",(round(money_to_pay,2),ctx.author.id,))
+                await self.bot.db.execute("UPDATE e_users SET totalearnings = (totalearnings + ?) WHERE id = ?",(round(money_to_pay,2),ctx.author.id,))
                 await self.bot.db.execute("DELETE FROM e_invests WHERE userid = ? AND stockid = ?",(ctx.author.id, name_or_id,))
                 await self.bot.db.execute("DELETE FROM e_invests WHERE userid = ? AND stockname = ?",(ctx.author.id, name_or_id,))
+                amount = random.uniform(0.1,0.5)
+                amount = round(amount,2)
+                await self.bot.execute("UPDATE e_stocks SET points = (points - ?) WHERE stockid = ?",(amount, name_or_id,))
+                await self.bot.execute("UPDATE e_stocks SET points = (points - ?) WHERE stockname = ?",(amount, name_or_id,))
                 try: await ctx.reply('👍')
                 except: await ctx.send('👍')
-        try: 
-            for r in msg.reactions: await r.remove()
-        except: pass
+        else:
+            msg = await ctx.send(f"${round(money_to_pay,2)} will be depositied into your account.\nYou invested ${round(amount_invested,2)}, at {points_at_investment} points.\nThere's no difference, you are essentially being refunded.\n**Are you sure you want to sell your investment?**")
+            await msg.add_reaction("✅")
+            def check(reaction, user): 
+                return reaction.emoji == '✅' and user == ctx.author
+            try:
+                reaction, user = await self.bot.wait_for('reaction_add', timeout=30.0, check=check)
+            except asyncio.TimeoutError:
+                await msg.edit(content="Timeout. Your investment was not sold.")
+            else:
+                await self.bot.db.execute("UPDATE e_users SET bal = (bal + ?) WHERE id = ?",(round(money_to_pay,2), ctx.author.id,))
+                await self.bot.db.execute("UPDATE e_users SET totalearnings = (totalearnings + ?) WHERE id = ?",(round(money_to_pay,2),ctx.author.id,))
+                await self.bot.db.execute("DELETE FROM e_invests WHERE userid = ? AND stockid = ?",(ctx.author.id, name_or_id,))
+                await self.bot.db.execute("DELETE FROM e_invests WHERE userid = ? AND stockname = ?",(ctx.author.id, name_or_id,))
+                amount = random.uniform(0.1,0.5)
+                amount = round(amount,2)
+                await self.bot.execute("UPDATE e_stocks SET points = (points - ?) WHERE stockid = ?",(amount, name_or_id,))
+                await self.bot.execute("UPDATE e_stocks SET points = (points - ?) WHERE stockname = ?",(amount, name_or_id,))
+                try: await ctx.reply('👍')
+                except: await ctx.send('👍')      
+        for r in msg.reactions: 
+            try:await r.remove()
+            except: pass
+        await self.bot.db.commit()
         
 def setup(bot):
     bot.add_cog(stocks(bot))

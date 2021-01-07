@@ -187,5 +187,14 @@ class devtools(commands.Cog):
             return
         await self.bot.change_presence(activity=discord.Streaming(name=name,url="https://twitch.tv/monstercat/"))
         await ctx.send("aight, done")
+        
+    @dev.command()
+    async def m(self, ctx):
+        if self.bot.maintenence:
+            self.bot.maintenence = False
+            return await ctx.send("Maintenence is now off.")
+        else:
+            self.bot.maintenence = True
+            return await ctx.send("Maintenence is now on.")
 def setup(bot):
     bot.add_cog(devtools(bot))
