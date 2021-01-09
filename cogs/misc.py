@@ -26,7 +26,7 @@ class HelpCommand(commands.HelpCommand):
         ctx = self.context
         clr = await ctx.bot.get_player_color(ctx.author)
         if clr is None:
-            clr = discord.Color.sea_green()
+            clr = discord.Color.black()
         embed = discord.Embed(title="EconomyX Bot Help", color=clr)
         embed.set_footer(text=f"Do {self.clean_prefix}help [command]")
         categories = []
@@ -50,7 +50,7 @@ class HelpCommand(commands.HelpCommand):
         entries = await self.filter_commands(cog.get_commands(), sort=True)
         for cmd in entries:
             embed.add_field(name=f"{self.clean_prefix}{cmd.name} {cmd.signature}",
-                            value=f"{cmd.help}",
+                            value=f"{cmd.help or cmd.description}",
                             inline=False)
 
         await ctx.send(embed=embed)
@@ -60,7 +60,7 @@ class HelpCommand(commands.HelpCommand):
         ctx = self.context
 
         embed = discord.Embed(title=f"{self.clean_prefix}{command.qualified_name} {command.signature}",
-                              description=f"{command.help}")
+                              description=f"{command.help or command.description}")
         embed.set_footer(text=f"Do {self.clean_prefix}help [command] for more help")
 
         await ctx.send(embed=embed)
@@ -82,9 +82,7 @@ class HelpCommand(commands.HelpCommand):
 
 
 class misc(commands.Cog):
-    """
-    These are miscellaneous bot commands, primarily meta about the bot.
-    """
+    """These are miscellaneous bot commands, primarily meta about the bot."""
     def __init__(self,bot):
         self.bot = bot
         self.bot._original_help_command = bot.help_command

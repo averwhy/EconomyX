@@ -190,11 +190,11 @@ class devtools(commands.Cog):
         
     @dev.command()
     async def m(self, ctx):
-        if self.bot.maintenence:
-            self.bot.maintenence = False
+        if self.bot.maintenance:
+            self.bot.maintenance = False
             return await ctx.send("Maintenence is now off.")
         else:
-            self.bot.maintenence = True
+            self.bot.maintenance = True
             return await ctx.send("Maintenence is now on.")
 def setup(bot):
     bot.add_cog(devtools(bot))

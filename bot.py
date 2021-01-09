@@ -6,7 +6,7 @@ import traceback
 import asyncio
 import time
 import random, typing
-from datetime import datetime
+from datetime import datetime, timedelta
 os.environ["JISHAKU_NO_DM_TRACEBACK"] = "True" 
 os.environ["JISHAKU_HIDE"] = "True"
 
@@ -156,7 +156,7 @@ class EcoBot(commands.Bot):
         await bot.db.commit()
         
     async def get_player_color(self, memberobject):
-        """Gets a players color."""
+        """Gets a players custom color."""
         player = await bot.get_player(memberobject.id)
         if player is None:
             return None
@@ -166,6 +166,14 @@ class EcoBot(commands.Bot):
     def utc_calc(self, timestamp: str):
         """Returns a pretty format of the amount of time ago from a given UTC Timestamp."""
         delta_uptime = datetime.utcnow() - datetime.strptime(timestamp,"%Y-%m-%d %H:%M:%S.%f")
+        hours, remainder = divmod(int(delta_uptime.total_seconds()), 3600)
+        minutes, seconds = divmod(remainder, 60)
+        days, hours = divmod(hours, 24)
+        return [days, hours, minutes, seconds]
+    
+    def lottery_countdown_calc(self, timestamp:str): # thanks pikaninja
+        timestamp = datetime.utcnow() + timedelta(minutes=30)
+        delta_uptime =  datetime.strptime(str(timestamp),"%Y-%m-%d %H:%M:%S.%f") - datetime.utcnow()
         hours, remainder = divmod(int(delta_uptime.total_seconds()), 3600)
         minutes, seconds = divmod(remainder, 60)
         days, hours = divmod(hours, 24)
@@ -184,7 +192,7 @@ bot.news_set_by = "no one yet.."
 bot.total_command_errors = 0
 bot.total_command_completetions = 0
 bot.launch_time = datetime.utcnow()
-bot.maintenence = False
+bot.maintenance = False
 print(bot.launch_time)
 
 
@@ -193,8 +201,8 @@ async def startup():
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_users (id int, name text, guildid int, bal double, totalearnings double, profilecolor text, lotterieswon int)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_stocks (stockid int, name text, points double, previouspoints double, ownerid int, created text)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_invests (stockid int, userid int, invested double, stockname text, invested_at double, invested_date blob)")
-    await bot.db.execute("CREATE TABLE IF NOT EXISTS e_lottery_users (userid int, username text, amount double, boughtwhen blob)")
-    await bot.db.execute("CREATE TABLE IF NOT EXISTS e_lottery_main (amountpooled double, drawingwhen blob, drawingnum int)")
+    await bot.db.execute("CREATE TABLE IF NOT EXISTS e_lottery_users (userid int, username text, boughtwhen blob)")
+    await bot.db.execute("CREATE TABLE IF NOT EXISTS e_lottery_main (drawingwhen blob, drawingnum int)")
     print("Database connected")
     
     bot.backup_db = await aiosqlite.connect('ecox_backup.db')
@@ -218,8 +226,8 @@ class MaintenenceActive(commands.CheckFailure):
     pass
     
 @bot.check
-async def maintenence_mode(ctx):
-    if bot.maintenence and ctx.author.id != 267410788996743168:
+async def maintenance_mode(ctx):
+    if bot.maintenance and ctx.author.id != 267410788996743168:
         raise MaintenenceActive()
         return False
     return True
@@ -228,7 +236,7 @@ async def maintenence_mode(ctx):
 @bot.event
 async def on_command_error(ctx, error): # this is an event that runs when there is an error
     if isinstance(error, MaintenenceActive):
-        embed = discord.Embed(description="Sorry, but maintenence mode is active. EconomyX will be back soon!",color=discord.Color(0xffff00))
+        embed = discord.Embed(description="Sorry, but maintenance mode is active. EconomyX will be back soon!",color=discord.Color(0xffff00))
         await ctx.send(embed=embed, delete_after=60)
     if isinstance(error, discord.ext.commands.errors.CommandNotFound):      
         return

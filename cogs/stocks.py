@@ -193,6 +193,14 @@ class stocks(commands.Cog):
             except:
                 await ctx.send('👍')
             await self.bot.db.execute("UPDATE e_stocks SET ",(name, ctx.author.id,))
+    
+    # @stock.command(description="Starts a interative command to view FAQ's about stocks.")
+    # async def faq(self, ctx):
+    #     thefaq = [
+    #         ["How do stocks work?",
+    #         "EconomyX stocks are fairly simple. Users can create stocks, and they can invest in stocks. Investing allows you to put a certain amount of money into a stock, at a certain point. Whenever you sell your investment, the money you earn back is calculated and paid back to you. (To see how it is calculated, use `e$help invest sell`"]
+    #     ]
+        
             
     @commands.group(invoke_without_command=True)
     async def invest(self, ctx, name_or_id, amount):

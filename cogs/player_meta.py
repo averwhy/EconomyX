@@ -17,6 +17,7 @@ class player_meta(commands.Cog):
     @commands.cooldown(1,5,BucketType.user)
     @commands.command(aliases=["p"])
     async def profile(self,ctx,user: discord.User = None):
+        """Views your profile. Can also view another users profile. They must be in the database."""
         if user is None:
             user = ctx.author
         data = await self.bot.get_player(user.id)
@@ -34,6 +35,7 @@ class player_meta(commands.Cog):
     @commands.cooldown(1,60,BucketType.user)
     @commands.command(aliases=["start","open"])
     async def register(self,ctx):
+        """Creates a profile with EconomyX. You can also use this is delete your account/profile."""
         async with ctx.channel.typing():
             await asyncio.sleep(0.5)
             data = await self.bot.usercheck(ctx.author.id)
@@ -46,11 +48,13 @@ class player_meta(commands.Cog):
         
     @commands.group(aliases=["c","change","custom"],invoke_without_command=True)
     async def customize(self,ctx):
+        """The customize command."""
         await ctx.send("Usage: `e$customize <guild/color>`")
          
     @commands.cooldown(1,60,BucketType.user)
     @customize.command(name="guild")
     async def gld(self, ctx, newguild: int = None):
+        """Allows you to change the guild you belong to. This wont effect your money or anything, just the guild (server) you belong to."""
         data = await self.bot.get_player(ctx.author.id)
         if data is None:
             await ctx.send("You dont have a profile. Try `e$register`")
@@ -98,7 +102,8 @@ class player_meta(commands.Cog):
 
     @commands.cooldown(1,40,BucketType.user)
     @customize.command(aliases=["colour","c"])
-    async def color(self,ctx,hexcolor : str = None): # WIP
+    async def color(self,ctx,hexcolor : str = None):
+        """Allows you to change the color that shows on your profile, and other certain commands, like `help`."""
         data = await self.bot.get_player(ctx.author.id)
         if data is None:
             await ctx.send("You dont have a profile. Try `e$register`")
@@ -140,6 +145,7 @@ class player_meta(commands.Cog):
                 
     @commands.command(aliases=["lb"])
     async def leaderboard(self,ctx):
+        """Views a leaderboard of users, sorted by their balance, descending."""
         async with ctx.channel.typing():
             c = await self.bot.db.execute("SELECT * FROM e_users ORDER BY bal DESC")
             data = await c.fetchmany(5)
