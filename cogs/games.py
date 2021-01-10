@@ -48,7 +48,7 @@ class games(commands.Cog):
     async def rockpaperscissors(self, ctx, description="Rock paper scissors. "):
         await ctx.send("Usage: `e$rps <rock/paper/scissors>`")
     
-    @commands.cooldown(1,10,BucketType.user)
+    @commands.cooldown(1,5,BucketType.user)
     @rockpaperscissors.command(aliases=["p"], description="Paper")
     async def paper(self, ctx):
         player = await self.bot.get_player(ctx.author.id)
@@ -78,7 +78,7 @@ class games(commands.Cog):
             await ctx.send(f"Oh?\n{m}\nTie. None of us pay")
             return
         
-    @commands.cooldown(1,10,BucketType.user)
+    @commands.cooldown(1,5,BucketType.user)
     @rockpaperscissors.command(aliases=["r"], description="Rock")
     async def rock(self, ctx):
         player = await self.bot.get_player(ctx.author.id)
@@ -108,7 +108,7 @@ class games(commands.Cog):
             await ctx.send(f"Oh?\n{m}\nTie. None of us pay")
             return
         
-    @commands.cooldown(1,10,BucketType.user)
+    @commands.cooldown(1,5,BucketType.user)
     @rockpaperscissors.command(aliases=["s","scissor"], description="Scissors")
     async def scissors(self, ctx):
         player = await self.bot.get_player(ctx.author.id)
@@ -138,7 +138,7 @@ class games(commands.Cog):
             await ctx.send(f"Oh?\n{m}\nTie. None of us pay")
             return
         
-    @commands.cooldown(1,60,BucketType.user)
+    @commands.cooldown(1,15,BucketType.user)
     @commands.command(description="Guess game with money. You have 5 chances to guess the number randomly chosen between 1-10.\nThis amounts to a 50/50 chance.")
     async def guess(self, ctx, amount: float):
         amount = float(amount)

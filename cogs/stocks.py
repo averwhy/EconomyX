@@ -179,6 +179,7 @@ class stocks(commands.Cog):
         if not name.isalnum():
             return await ctx.send("New name must be alphanumeric. (A-Z, 0-9)")
         
+        name = name.upper()
         msg = await ctx.send(f"Old stock name: {playerstock[1]}\nNew Stock name: {name}\n**Are you sure you want to rename this stock for $100?**")
         
         def check(reaction, user):
@@ -219,10 +220,11 @@ class stocks(commands.Cog):
         if player[3] < amount:
             await ctx.send(f"That investment is too big. You only have ${player[3]}.")
             return
-        cur = await self.bot.db.execute("SELECT * FROM e_stocks WHERE name = ?",(name_or_id,))
+        cur = await self.bot.db.execute("SELECT * FROM e_stocks WHERE stockid = ?",(name_or_id,))
         stock = await cur.fetchone()
         if stock is None:
-            cur = await self.bot.db.execute("SELECT * FROM e_stocks WHERE stockid = ?",(name_or_id,))
+            name_or_id = name_or_id.upper()
+            cur = await self.bot.db.execute("SELECT * FROM e_stocks WHERE name = ?",(name_or_id,))
             stock = await cur.fetchone()
             if stock is None:
                 await ctx.send("I couldn't find that stock. Double check the name/ID.")
@@ -239,8 +241,8 @@ class stocks(commands.Cog):
         await self.bot.db.execute("UPDATE e_users SET bal = (bal - ?) WHERE id = ?",(amount,ctx.author.id,))
         amount = random.uniform(0.1,0.5)
         amount = round(amount,2)
-        await self.bot.execute("UPDATE e_stocks SET points = (points + ?) WHERE stockid = ?",(amount, name_or_id,))
-        await self.bot.execute("UPDATE e_stocks SET points = (points + ?) WHERE stockname = ?",(amount, name_or_id,))
+        await self.bot.db.execute("UPDATE e_stocks SET points = (points + ?) WHERE stockid = ?",(amount, name_or_id,))
+        await self.bot.db.execute("UPDATE e_stocks SET points = (points + ?) WHERE stockname = ?",(amount, name_or_id,))
         await ctx.send(f"Invested ${amount} in **{stock[1]}** at {stock[2]} points!")
         
     @invest.command(invoke_without_command=True, description="Sells an investment.\nThe money you earn back is calculated like this: `money_to_pay = (current_stock_points - points_at_investment) * amount_invested`")
@@ -306,8 +308,8 @@ class stocks(commands.Cog):
                 await self.bot.db.execute("DELETE FROM e_invests WHERE userid = ? AND stockname = ?",(ctx.author.id, name_or_id,))
                 amount = random.uniform(0.1,0.5)
                 amount = round(amount,2)
-                await self.bot.execute("UPDATE e_stocks SET points = (points - ?) WHERE stockid = ?",(amount, name_or_id,))
-                await self.bot.execute("UPDATE e_stocks SET points = (points - ?) WHERE stockname = ?",(amount, name_or_id,))
+                await self.bot.db.execute("UPDATE e_stocks SET points = (points - ?) WHERE stockid = ?",(amount, name_or_id,))
+                await self.bot.db.execute("UPDATE e_stocks SET points = (points - ?) WHERE stockname = ?",(amount, name_or_id,))
                 try: await ctx.reply('👍')
                 except: await ctx.send('👍')
         else:

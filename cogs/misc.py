@@ -26,7 +26,7 @@ class HelpCommand(commands.HelpCommand):
         ctx = self.context
         clr = await ctx.bot.get_player_color(ctx.author)
         if clr is None:
-            clr = discord.Color.black()
+            clr = discord.Color.dark_gray()
         embed = discord.Embed(title="EconomyX Bot Help", color=clr)
         embed.set_footer(text=f"Do {self.clean_prefix}help [command]")
         categories = []
@@ -100,6 +100,30 @@ class misc(commands.Cog):
     
     def cog_unload(self):
         self.bot.help_command = self.bot._original_help_command
+    
+    # @commands.group(invoke_without_command=True)
+    # async def prefix(self, ctx):
+    #     """Views the prefix you use with the bot. Note that this is only per-user."""
+    #     c = await self.bot.db.execute("SELECT prefix, setwhen FROM e_prefixes WHERE userid = ?",(ctx.author.id,))
+    #     prefixdata = await c.fetchone()
+    #     pcolor = await self.bot.get_player_color(ctx.author)
+    #     if pcolor is None: pcolor = discord.Color.random()
+    #     embed = discord.Embed(color=pcolor)
+    #     if prefixdata is None:
+    #         prefixdata = ["e$"]
+    #         ts = None
+    #     embed.add_field(name=f"{str(ctx.author)}'s prefix", value=prefixdata[0])
+    #     await ctx.send(embed=embed)
+    
+    # @prefix.command(name="set",aliases=["new","change","s","n","c"],description="Allows you to change the prefix you use with the bot. Note that this is only per-user.")
+    # async def _set(self, ctx, newprefix):
+    #     if len(newprefix) > 5:
+    #         return await ctx.send("That prefix is too long.")
+        
+    #     await self.bot.db.execute("UPDATE e_prefixes SET prefix = ? WHERE userid = ?",(newprefix, ctx.author.id,))
+    #     await self.bot.db.commit()
+    #     self.bot.prefixes[ctx.author.id] = newprefix
+    #     await ctx.send(f"Your new prefix is `{newprefix}`. Do note this is your prefix, and no one elses.")
     
     @commands.cooldown(1,10,BucketType.channel)
     @commands.command(aliases=["information"])

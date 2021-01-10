@@ -172,14 +172,16 @@ class EcoBot(commands.Bot):
         return [days, hours, minutes, seconds]
     
     def lottery_countdown_calc(self, timestamp:str): # thanks pikaninja
-        timestamp = datetime.utcnow() + timedelta(minutes=30)
-        delta_uptime =  datetime.strptime(str(timestamp),"%Y-%m-%d %H:%M:%S.%f") - datetime.utcnow()
+        delta_uptime =  datetime.strptime(timestamp,"%Y-%m-%d %H:%M:%S.%f") - datetime.utcnow()
         hours, remainder = divmod(int(delta_uptime.total_seconds()), 3600)
         minutes, seconds = divmod(remainder, 60)
         days, hours = divmod(hours, 24)
         return [days, hours, minutes, seconds]
-       
-            
+
+default_prefix = 'e$'
+async def get_prefix(bot, message):
+    return bot.prefixes.get(message.author.id, default_prefix)
+              
 bot = EcoBot(command_prefix=commands.when_mentioned_or("ecox ","e$"),description=desc,intents=discord.Intents(reactions=True, messages=True, guilds=True, members=True))
 
 bot.initial_extensions = ["jishaku","cogs.player_meta","cogs.devtools","cogs.games","cogs.money_meta","cogs.misc","cogs.jobs","cogs.stocks"]
@@ -195,7 +197,6 @@ bot.launch_time = datetime.utcnow()
 bot.maintenance = False
 print(bot.launch_time)
 
-
 async def startup():
     bot.db = await aiosqlite.connect('economyx.db')
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_users (id int, name text, guildid int, bal double, totalearnings double, profilecolor text, lotterieswon int)")
@@ -203,11 +204,15 @@ async def startup():
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_invests (stockid int, userid int, invested double, stockname text, invested_at double, invested_date blob)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_lottery_users (userid int, username text, boughtwhen blob)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_lottery_main (drawingwhen blob, drawingnum int)")
+    await bot.db.execute("CREATE TABLE IF NOT EXISTS e_prefixes (userid int, prefix blob, setwhen blob)")
     print("Database connected")
     
     bot.backup_db = await aiosqlite.connect('ecox_backup.db')
     print("Backup database is ready")
     await bot.backup_db.close()
+    
+    cur = await bot.db.execute("SELECT * FROM e_prefixes")
+    bot.prefixes = {user_id: prefix for user_id, prefix in (await cur.fetchall())}
 bot.loop.create_task(startup())
 
 @bot.event
@@ -231,7 +236,6 @@ async def maintenance_mode(ctx):
         raise MaintenenceActive()
         return False
     return True
-    
     
 @bot.event
 async def on_command_error(ctx, error): # this is an event that runs when there is an error
