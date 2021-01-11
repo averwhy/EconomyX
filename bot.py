@@ -64,10 +64,13 @@ class EcoBot(commands.Bot):
         await bot.db.commit()
         return data
     
-    async def get_stock(self, id):
-        """Gets a stock from the database"""
-        cur = await bot.db.execute("SELECT * FROM e_stocks WHERE ownerid = ?",(id,))
+    async def get_stock(self, name_or_id):
+        """Gets a stock from the database. Checks both name and ID."""
+        cur = await bot.db.execute("SELECT * FROM e_stocks WHERE stockid = ?",(name_or_id,))
         data = await cur.fetchone()
+        if data is None:
+            cur = await bot.db.execute("SELECT * FROM e_stocks WHERE name = ?",(name_or_id,))
+            data = await cur.fetchone()
         await bot.db.commit()
         return data
     
@@ -143,6 +146,24 @@ class EcoBot(commands.Bot):
             return newbalance
         else:
             return None
+        
+    async def update_balance(self, userobj, **kwargs):
+        """Updates balance."""
+        
+        player = bot.get_player(userobj.id)
+        if player is None:
+            return False
+        amount = kwargs['amount'] # Required
+        try:
+            #Optional:
+            reason = kwargs['reason'] # str
+            id_override = kwargs['id_override'] # int
+            earned_update = kwargs['update_earned'] # bool
+        except KeyError:
+            pass
+        
+        await bot.db.execute("UPDATE e_users SET bal = (bal + ?) WHERE id = ?",(amount, userobj.id))
+    
     async def transfer_money(self,member_paying: typing.Union[discord.User, discord.Member] ,member_getting_paid: typing.Union[discord.User, discord.Member],amount):
         """Transfers money from one player to another."""
         c = await bot.db.execute("SELECT * FROM e_users WHERE id = ?",(member_paying.id,))
@@ -152,7 +173,6 @@ class EcoBot(commands.Bot):
         #update users
         await bot.db.execute("UPDATE e_users SET bal = (bal - ?) WHERE id = ?",(amount,member_paying.id,))
         await bot.db.execute("UPDATE e_users SET bal = (bal + ?) WHERE id = ?",(amount,member_getting_paid.id,))
-        
         await bot.db.commit()
         
     async def get_player_color(self, memberobject):
@@ -182,9 +202,9 @@ default_prefix = 'e$'
 async def get_prefix(bot, message):
     return bot.prefixes.get(message.author.id, default_prefix)
               
-bot = EcoBot(command_prefix=commands.when_mentioned_or("ecox ","e$"),description=desc,intents=discord.Intents(reactions=True, messages=True, guilds=True, members=True))
+bot = EcoBot(command_prefix=get_prefix,description=desc,intents=discord.Intents(reactions=True, messages=True, guilds=True, members=True))
 
-bot.initial_extensions = ["jishaku","cogs.player_meta","cogs.devtools","cogs.games","cogs.money_meta","cogs.misc","cogs.jobs","cogs.stocks"]
+bot.initial_extensions = ["jishaku","cogs.player_meta","cogs.devtools","cogs.games","cogs.money_meta","cogs.misc","cogs.jobs","cogs.stocks","cogs.jsk_override"]
 with open("TOKEN.txt",'r') as t:
     TOKEN = t.readline()
 bot.time_started = time.localtime()
@@ -205,6 +225,7 @@ async def startup():
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_lottery_users (userid int, username text, boughtwhen blob)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_lottery_main (drawingwhen blob, drawingnum int)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_prefixes (userid int, prefix blob, setwhen blob)")
+    await bot.db.execute("CREATE TABLE IF NOT EXISTS e_balance_logging (userid int, diff double, happenedwhen blob, fromid int, reason text, command text)")
     print("Database connected")
     
     bot.backup_db = await aiosqlite.connect('ecox_backup.db')

@@ -10,7 +10,7 @@ from discord.ext import tasks
 from datetime import datetime
 OWNER_ID = 267410788996743168
 
-class stocks(commands.Cog):
+class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
     """
     Stock commands (except investments).
     """
@@ -292,11 +292,11 @@ class stocks(commands.Cog):
             else:
                 amount = random.uniform(0.1,0.5)
                 amount = round(amount,2)
-                await self.bot.execute("UPDATE e_stocks SET points = (points - ?) WHERE stockid = ?",(amount, name_or_id,))
-                await self.bot.execute("UPDATE e_stocks SET points = (points - ?) WHERE name = ?",(amount, name_or_id,))
+                await self.bot.db.execute("UPDATE e_stocks SET points = (points - ?) WHERE stockid = ?",(amount, name_or_id,))
+                await self.bot.db.execute("UPDATE e_stocks SET points = (points - ?) WHERE name = ?",(amount, name_or_id,))
                 await self.bot.db.execute("UPDATE e_users SET bal = (bal + ?) WHERE id = ?",(round(money_to_pay,2), ctx.author.id,))
                 await self.bot.db.execute("DELETE FROM e_invests WHERE userid = ? AND stockid = ?",(ctx.author.id, name_or_id,))
-                await self.bot.db.execute("DELETE FROM e_invests WHERE userid = ? AND name = ?",(ctx.author.id, name_or_id,))
+                await self.bot.db.execute("DELETE FROM e_invests WHERE userid = ? AND stockname = ?",(ctx.author.id, name_or_id,))
                 try: await ctx.reply('👍')
                 except: await ctx.send('👍')
         elif money_to_pay < 0:
@@ -316,7 +316,7 @@ class stocks(commands.Cog):
                 await self.bot.db.execute("UPDATE e_users SET bal = (bal + ?) WHERE id = ?",(round(money_to_pay,2), ctx.author.id,))
                 await self.bot.db.execute("UPDATE e_users SET totalearnings = (totalearnings + ?) WHERE id = ?",(round(money_to_pay,2),ctx.author.id,))
                 await self.bot.db.execute("DELETE FROM e_invests WHERE userid = ? AND stockid = ?",(ctx.author.id, name_or_id,))
-                await self.bot.db.execute("DELETE FROM e_invests WHERE userid = ? AND name = ?",(ctx.author.id, name_or_id,))
+                await self.bot.db.execute("DELETE FROM e_invests WHERE userid = ? AND stockname = ?",(ctx.author.id, name_or_id,))
                 try: await ctx.reply('👍')
                 except: await ctx.send('👍')
         else:
@@ -331,12 +331,12 @@ class stocks(commands.Cog):
             else:
                 amount = random.uniform(0.1,0.5)
                 amount = round(amount,2)
-                await self.bot.execute("UPDATE e_stocks SET points = (points - ?) WHERE stockid = ?",(amount, name_or_id,))
-                await self.bot.execute("UPDATE e_stocks SET points = (points - ?) WHERE name = ?",(amount, name_or_id,))
+                await self.bot.db.execute("UPDATE e_stocks SET points = (points - ?) WHERE stockid = ?",(amount, name_or_id,))
+                await self.bot.db.execute("UPDATE e_stocks SET points = (points - ?) WHERE name = ?",(amount, name_or_id,))
                 await self.bot.db.execute("UPDATE e_users SET bal = (bal + ?) WHERE id = ?",(round(money_to_pay,2), ctx.author.id,))
                 await self.bot.db.execute("UPDATE e_users SET totalearnings = (totalearnings + ?) WHERE id = ?",(round(money_to_pay,2),ctx.author.id,))
                 await self.bot.db.execute("DELETE FROM e_invests WHERE userid = ? AND stockid = ?",(ctx.author.id, name_or_id,))
-                await self.bot.db.execute("DELETE FROM e_invests WHERE userid = ? AND name = ?",(ctx.author.id, name_or_id,))
+                await self.bot.db.execute("DELETE FROM e_invests WHERE userid = ? AND stockname = ?",(ctx.author.id, name_or_id,))
                 try: await ctx.reply('👍')
                 except: await ctx.send('👍')      
         for r in msg.reactions: 
