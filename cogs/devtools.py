@@ -22,7 +22,7 @@ class devtools(commands.Cog):
     @commands.Cog.listener()
     async def on_guild_join(self, guild):
         try:
-            logchannel = await self.bot.fetch_channel(780480654277476352)
+            logchannel = await self.bot.fetch_channel(798016167163723776)
             guildstatvc = await self.bot.fetch_channel(798014995496960000)
             await guildstatvc.edit(name=f"Guilds: {len(self.bot.guilds)}")
             userstatvc = await self.bot.fetch_channel(798014995496960000)
@@ -31,19 +31,19 @@ class devtools(commands.Cog):
             
             ts = self.bot.utc_calc(str(guild.created_at))
             msg = f"""```prolog
-            Guild:           {guild.name}
-            ID:              {guild.id}
-            Owner:           {str(guild.owner)}
-            Region:          {guild.region}
-            Members:         {guild.member_count}
-            Boosters:        {len(guild.premium_subscribers)}
-            Boost level:     {guild.premium_tier}
-            Channels:        {len(guild.channels)}
-            Roles:           {len(guild.roles)}
-            Filesize limit:  {guild.filesize_limit}
-            Desc:            {(guild.description or 'None')}
-            Created:         {ts[0]} days, {ts[1]} hours, {ts[2]} minutes, {ts[3]} seconds ago
-            Emoji limit:     {guild.emoji_limit}```
+Guild:           {guild.name}
+ID:              {guild.id}
+Owner:           {str(guild.owner)}
+Region:          {guild.region}
+Members:         {guild.member_count}
+Boosters:        {len(guild.premium_subscribers)}
+Boost level:     {guild.premium_tier}
+Channels:        {len(guild.channels)}
+Roles:           {len(guild.roles)}
+Filesize limit:  {guild.filesize_limit}
+Desc:            {(guild.description or 'None')}
+Created:         {ts[0]} days, {ts[1]} hours, {ts[2]} minutes, {ts[3]} seconds ago
+Emoji limit:     {guild.emoji_limit}```
             """
             await logchannel.send(msg)
         except Exception as e:
@@ -53,7 +53,7 @@ class devtools(commands.Cog):
     @commands.Cog.listener()
     async def on_guild_leave(self, guild):
         try:
-            logchannel = await self.bot.fetch_channel(780480654277476352)
+            logchannel = await self.bot.fetch_channel(798016167163723776)
             guildstatvc = await self.bot.fetch_channel(798014995496960000)
             await guildstatvc.edit(name=f"Guilds: {len(self.bot.guilds)}")
             userstatvc = await self.bot.fetch_channel(798014995496960000)
@@ -61,19 +61,19 @@ class devtools(commands.Cog):
             
             ts = self.bot.utc_calc(str(guild.created_at))
             msg = f"""```prolog
-            Guild:           {guild.name}
-            ID:              {guild.id}
-            Owner:           {str(guild.owner)}
-            Region:          {guild.region}
-            Members:         {guild.member_count}
-            Boosters:        {len(guild.premium_subscribers)}
-            Boost level:     {guild.premium_tier}
-            Channels:        {len(guild.channels)}
-            Roles:           {len(guild.roles)}
-            Filesize limit:  {guild.filesize_limit}
-            Desc:            {(guild.description or 'None')}
-            Created:         {ts[0]} days, {ts[1]} hours, {ts[2]} minutes, {ts[3]} seconds ago
-            Emoji limit:     {guild.emoji_limit}```
+Guild:           {guild.name}
+ID:              {guild.id}
+Owner:           {str(guild.owner)}
+Region:          {guild.region}
+Members:         {guild.member_count}
+Boosters:        {len(guild.premium_subscribers)}
+Boost level:     {guild.premium_tier}
+Channels:        {len(guild.channels)}
+Roles:           {len(guild.roles)}
+Filesize limit:  {guild.filesize_limit}
+Desc:            {(guild.description or 'None')}
+Created:         {ts[0]} days, {ts[1]} hours, {ts[2]} minutes, {ts[3]} seconds ago
+Emoji limit:     {guild.emoji_limit}```
             """
             await logchannel.send(msg)
         except Exception as e:
