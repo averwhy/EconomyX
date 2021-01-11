@@ -1,7 +1,7 @@
 import discord
 import platform
 import time
-from discord.ext import commands
+from discord.ext import commands, tasks
 from discord.ext.commands.cooldowns import BucketType
 from discord.ext.commands import CheckFailure, check
 import asyncio
@@ -18,6 +18,72 @@ class devtools(commands.Cog):
     
     async def cog_check(self,ctx):
         return ctx.author.id == OWNER_ID
+    
+    @commands.Cog.listener()
+    async def on_guild_join(self, guild):
+        logchannel = await self.bot.fetch_channel(780480654277476352)
+        guildstatvc = await self.bot.fetch_channel(798014995496960000)
+        await guildstatvc.edit(name=f"Guilds: {len(self.bot.guilds)}")
+        userstatvc = await self.bot.fetch_channel(798014995496960000)
+        await userstatvc.edit(name=f"Users: {len(self.bot.users)}")
+        
+        
+        ts = self.bot.utc_calc(str(guild.created_at))
+        msg = f"""```prolog
+        Guild:           {guild.name}
+        ID:              {guild.id}
+        Owner:           {str(guild.owner)}
+        Region:          {guild.region}
+        Members:         {guild.member_count}
+        Boosters:        {guild.premium_subscribers}
+        Boost level:     {guild.premium_tier}
+        Channels:        {len(guild.channels)}
+        Roles:           {len(guild.roles)}
+        Filesize limit:  {guild.filesize_limit}
+        Desc:            {(guild.description or 'None')}
+        Created:         {ts[0]} days, {ts[1]} hours, {ts[2]} minutes, {ts[3]} seconds ago
+        Emoji limit:     {guild.emoji_limit}
+        """
+        await logchannel.send(msg)
+        
+    @commands.Cog.listener()
+    async def on_guild_leave(self, guild):
+        logchannel = await self.bot.fetch_channel(780480654277476352)
+        guildstatvc = await self.bot.fetch_channel(798014995496960000)
+        await guildstatvc.edit(name=f"Guilds: {len(self.bot.guilds)}")
+        userstatvc = await self.bot.fetch_channel(798014995496960000)
+        await userstatvc.edit(name=f"Users: {len(self.bot.users)}")
+        
+        ts = self.bot.utc_calc(str(guild.created_at))
+        msg = f"""```prolog
+        Guild:           {guild.name}
+        ID:              {guild.id}
+        Owner:           {str(guild.owner)}
+        Region:          {guild.region}
+        Members:         {guild.member_count}
+        Boosters:        {guild.premium_subscribers}
+        Boost level:     {guild.premium_tier}
+        Channels:        {len(guild.channels)}
+        Roles:           {len(guild.roles)}
+        Filesize limit:  {guild.filesize_limit}
+        Desc:            {(guild.description or 'None')}
+        Created:         {ts[0]} days, {ts[1]} hours, {ts[2]} minutes, {ts[3]} seconds ago
+        Emoji limit:     {guild.emoji_limit}
+        """
+        await logchannel.send(msg)
+        
+    @tasks.loop(minutes=10)
+    async def database_backup_task(self):
+        try:
+            await self.bot.db.commit()
+            self.bot.backup_db = await aiosqlite.connect('ecox_backup.db')
+            await self.bot.db.backup(self.bot.backup_db)
+            await self.bot.backup_db.commit()
+            await self.bot.backup_db.close()
+            return
+        except Exception as e:
+            print(f"An error occured while backing up the database:\n`{e}`")
+            return
     
     @commands.group(invoke_without_command=True,hidden=True)
     async def dev(self, ctx):

@@ -154,6 +154,7 @@ class misc(commands.Cog):
         **Number of users in database:** {total_db_users[0]}
         **Database changes in this session:** {self.bot.db.total_changes}
         **Active database transaction:** {self.bot.db.in_transaction}
+        **Top.gg link (vote me pls :>): https://top.gg/bot/780480654277476352**
         """
         embed = discord.Embed(title="EconomyX Info",description=desc,color=color)
         embed.set_footer(text=f"Made with Python {platform.python_version()}, enchanced discord.py {discord.__version__}, and aiosqlite {aiosqlite.__version__}",icon_url="https://images-ext-1.discordapp.net/external/0KeQjRAKFJfVMXhBKPc4RBRNxlQSiieQtbSxuPuyfJg/http/i.imgur.com/5BFecvA.png")
