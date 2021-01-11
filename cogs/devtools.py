@@ -25,7 +25,7 @@ class devtools(commands.Cog):
             logchannel = await self.bot.fetch_channel(798016167163723776)
             guildstatvc = await self.bot.fetch_channel(798014995496960000)
             await guildstatvc.edit(name=f"Guilds: {len(self.bot.guilds)}")
-            userstatvc = await self.bot.fetch_channel(798014995496960000)
+            userstatvc = await self.bot.fetch_channel(798018451330433044)
             await userstatvc.edit(name=f"Users: {len(self.bot.users)}")
             
             
@@ -56,7 +56,7 @@ Emoji limit:     {guild.emoji_limit}```
             logchannel = await self.bot.fetch_channel(798016167163723776)
             guildstatvc = await self.bot.fetch_channel(798014995496960000)
             await guildstatvc.edit(name=f"Guilds: {len(self.bot.guilds)}")
-            userstatvc = await self.bot.fetch_channel(798014995496960000)
+            userstatvc = await self.bot.fetch_channel(798018451330433044)
             await userstatvc.edit(name=f"Users: {len(self.bot.users)}")
             
             ts = self.bot.utc_calc(str(guild.created_at))
