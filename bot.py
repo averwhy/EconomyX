@@ -219,13 +219,13 @@ print(bot.launch_time)
 
 async def startup():
     bot.db = await aiosqlite.connect('economyx.db')
-    await bot.db.execute("CREATE TABLE IF NOT EXISTS e_users (id int, name text, guildid int, bal double, totalearnings double, profilecolor text, lotterieswon int)")
+    await bot.db.execute("CREATE TABLE IF NOT EXISTS e_users (id int, name text, guildid int, bal int, totalearnings int, profilecolor text, lotterieswon int)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_stocks (stockid int, name text, points double, previouspoints double, ownerid int, created text)")
-    await bot.db.execute("CREATE TABLE IF NOT EXISTS e_invests (stockid int, userid int, invested double, stockname text, invested_at double, invested_date blob)")
+    await bot.db.execute("CREATE TABLE IF NOT EXISTS e_invests (stockid int, userid int, invested int, stockname text, invested_at double, invested_date blob)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_lottery_users (userid int, username text, boughtwhen blob)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_lottery_main (drawingwhen blob, drawingnum int)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_prefixes (userid int, prefix blob, setwhen blob)")
-    await bot.db.execute("CREATE TABLE IF NOT EXISTS e_balance_logging (userid int, diff double, happenedwhen blob, fromid int, reason text, command text)")
+    await bot.db.execute("CREATE TABLE IF NOT EXISTS e_balance_logging (userid int, amount int, diff int, happenedwhen blob, fromid int, reason text, command text)")
     print("Database connected")
     
     bot.backup_db = await aiosqlite.connect('ecox_backup.db')

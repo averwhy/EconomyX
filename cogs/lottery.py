@@ -32,7 +32,7 @@ class lottery(commands.Cog):
             # -1800 seconds would be 30 mins (we want to draw every 30 mins)
             # So, lets draw, then reset
             cur = await self.bot.db.execute("SELECT COUNT(*) FROM e_lottery_users")
-            winningamount = (await cur.fetchone())[0]
+            winningamount = ((await cur.fetchone())[0] * 100)
             c = await self.bot.db.execute("SELECT * FROM e_lottery_users ORDER BY RANDOM()")
             winningplayer = await c.fetchone()
             #enhanced-dpy time

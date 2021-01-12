@@ -22,7 +22,7 @@ class money_meta(commands.Cog):
         if player is None:
             await ctx.send("You dont have a profile! Get one with `e$register`.")
             return
-        amount = float(amount)
+        amount = int(amount)
         if player[3] < amount:
             await ctx.send(f"You cant pay them that much. You only have ${player[3]}.")
             return

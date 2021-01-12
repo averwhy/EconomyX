@@ -24,7 +24,7 @@ class games(commands.Cog):
             return
         if amount.lower() == "all":
             amount = player[3]
-        amount = float(amount)
+        amount = int(amount)
         if amount != amount:
             await ctx.send("Thats not a valid amount. Nice try, though")
             return
@@ -140,8 +140,8 @@ class games(commands.Cog):
         
     @commands.cooldown(1,15,BucketType.user)
     @commands.command(description="Guess game with money. You have 5 chances to guess the number randomly chosen between 1-10.\nThis amounts to a 50/50 chance.")
-    async def guess(self, ctx, amount: float):
-        amount = float(amount)
+    async def guess(self, ctx, amount: int):
+        amount = int(amount)
         amount = round(amount,2)
         player = await self.bot.get_player(ctx.author.id)
         if player is None:
