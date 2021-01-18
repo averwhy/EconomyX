@@ -51,7 +51,7 @@ class EcoBot(commands.Bot):
     async def add_player(self,member_object):
         """Adds a player to the database"""
         try:
-            await bot.db.execute("INSERT INTO e_users VALUES (?, ?, ?, 100.0, 0.0, 'FFFFFF')",(member_object.id,member_object.name,member_object.guild.id,))
+            await bot.db.execute("INSERT INTO e_users VALUES (?, ?, ?, 100, 0, 'FFFFFF', 0)",(member_object.id,member_object.name,member_object.guild.id,))
             await bot.db.commit()
             return "Done! View your profile with `e$profile`"
         except Exception as e:
