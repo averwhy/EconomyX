@@ -74,6 +74,13 @@ class EcoBot(commands.Bot):
         await bot.db.commit()
         return data
     
+    async def get_stock_from_player(self, user):
+        """Gets a stock from the database. Takes a user/member object."""
+        cur = await bot.db.execute("SELECT * FROM e_stocks WHERE ownerid = ?",(user.id,))
+        data = await cur.fetchone()
+        await bot.db.commit()
+        return data
+    
     async def begin_user_deletion(self, ctx, i_msg):
         """Begins the user deletion process."""
         player = await self.get_player(ctx.author.id)

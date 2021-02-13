@@ -48,7 +48,7 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
             user = ctx.author
         embedcolor = int(("0x"+player[5]),0)
         embed = discord.Embed(title=f"{str(user)}'s stock portfolio",description=f"`ID: {user.id}`",color=embedcolor)
-        playerstock = await self.bot.get_stock(ctx.author.id)
+        playerstock = await self.bot.get_stock_from_player(ctx.author.id)
         if playerstock is None:
             embed.add_field(name="Owned stock",value="None")
         else:
