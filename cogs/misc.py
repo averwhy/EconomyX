@@ -159,11 +159,18 @@ class misc(commands.Cog):
         **Database changes in this session:** {self.bot.db.total_changes}
         **Active database transaction:** {self.bot.db.in_transaction}
         **Top.gg link (vote me pls :>): https://top.gg/bot/780480654277476352**
+        **Support Server:** *See invite below*
+        **Protip: See a live count of the users and 
         """
         embed = discord.Embed(title="EconomyX Info",description=desc,color=color)
         embed.set_footer(text=f"Made with Python {platform.python_version()}, enchanced discord.py {discord.__version__}, and aiosqlite {aiosqlite.__version__}",icon_url="https://images-ext-1.discordapp.net/external/0KeQjRAKFJfVMXhBKPc4RBRNxlQSiieQtbSxuPuyfJg/http/i.imgur.com/5BFecvA.png")
         embed.set_thumbnail(url="https://media.discordapp.net/attachments/460568954968997890/761037965987807232/dpycogs.png")
-        await ctx.send(embed=embed)
+        await ctx.send(content="https://discord.gg/epQZEp933x", embed=embed)
+    
+    @commands.command()
+    async def support(self, ctx):
+        source_url = 'https://github.com/averwhy/EconomyX'
+        await ctx.send(f"https://discord.gg/epQZEp933x\nYou can also create an issue on my Github repository: <{source_url}>")
     
     @commands.cooldown(1,5,BucketType.user)
     @commands.command()

@@ -24,13 +24,17 @@ class devtools(commands.Cog):
         try:
             logchannel = await self.bot.fetch_channel(798016167163723776)
             guildstatvc = await self.bot.fetch_channel(798014995496960000)
+            playerstatvc = await self.bot.fetch_channel(809977048868585513)
             await guildstatvc.edit(name=f"Guilds: {len(self.bot.guilds)}")
             userstatvc = await self.bot.fetch_channel(798018451330433044)
             await userstatvc.edit(name=f"Users: {len(self.bot.users)}")
+            c = await self.bot.db.execute("SELECT COUNT(*) FROM e_users")
+            total_db_users = await c.fetchone()
+            await playerstatvc.edit(name=f"Players (in DB): {total_db_users[0]}")
             
             
             ts = self.bot.utc_calc(str(guild.created_at))
-            msg = f"""```prolog
+            msg = f"""New guild pog: ```prolog
 Guild:           {guild.name}
 ID:              {guild.id}
 Owner:           {str(guild.owner)}
@@ -55,12 +59,16 @@ Emoji limit:     {guild.emoji_limit}```
         try:
             logchannel = await self.bot.fetch_channel(798016167163723776)
             guildstatvc = await self.bot.fetch_channel(798014995496960000)
+            playerstatvc = await self.bot.fetch_channel(809977048868585513)
             await guildstatvc.edit(name=f"Guilds: {len(self.bot.guilds)}")
             userstatvc = await self.bot.fetch_channel(798018451330433044)
             await userstatvc.edit(name=f"Users: {len(self.bot.users)}")
+            c = await self.bot.db.execute("SELECT COUNT(*) FROM e_users")
+            total_db_users = await c.fetchone()
+            await playerstatvc.edit(name=f"Players (in DB): {total_db_users[0]}")
             
             ts = self.bot.utc_calc(str(guild.created_at))
-            msg = f"""```prolog
+            msg = f"""Fuck, we lost a guild: ```prolog
 Guild:           {guild.name}
 ID:              {guild.id}
 Owner:           {str(guild.owner)}
@@ -115,6 +123,20 @@ Emoji limit:     {guild.emoji_limit}```
                 await ctx.send(content=f"`{len(self.bot.initial_extensions)} cogs succesfully reloaded.`") # no output = no error
             else:
                 await ctx.send(content=f"`{amount_reloaded} cogs were reloaded, except:` ```\n{output}```") # output
+    
+    @dev.command(aliases=["us"])
+    async def updatestats(self, ctx):
+        async with ctx.channel.typing():
+            logchannel = await self.bot.fetch_channel(798016167163723776)
+            guildstatvc = await self.bot.fetch_channel(798014995496960000)
+            playerstatvc = await self.bot.fetch_channel(809977048868585513)
+            await guildstatvc.edit(name=f"Guilds: {len(self.bot.guilds)}")
+            userstatvc = await self.bot.fetch_channel(798018451330433044)
+            await userstatvc.edit(name=f"Users: {len(self.bot.users)}")
+            c = await self.bot.db.execute("SELECT COUNT(*) FROM e_users")
+            total_db_users = await c.fetchone()
+            await playerstatvc.edit(name=f"Players (in DB): {total_db_users[0]}")
+        await ctx.send("Updated support server stats.")
 
     @dev.command(aliases=["load","l"])
     async def loadall(self, ctx):
