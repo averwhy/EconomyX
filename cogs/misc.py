@@ -6,6 +6,7 @@ import time
 import random
 import asyncio
 import re, os
+import humanize
 from datetime import datetime
 from discord.ext import commands, menus
 from discord.ext.commands.cooldowns import BucketType
@@ -254,6 +255,24 @@ class misc(commands.Cog):
         """An interactive command to view EconomyX's Privacy Policy."""
         p = menus.MenuPages(source=botmenus.PPSource(self.pp), clear_reactions_after=True)
         await p.start(ctx)
+    
+    @commands.command()
+    @commands.cooldown(1, 15, BucketType.user)
+    async def news(self, ctx):
+        channel = self.bot.get_channel(self.bot.updates_channel)
+        if channel is None:
+            channel = await self.bot.fetch_channel(self.bot.updates_channel)
+        clr = await ctx.bot.get_player_color(ctx.author)
+        if clr is None:
+            if ctx.guild: clr = ctx.guild.me.color
+            else: clr = discord.Color.dark_gray()
+        latest_message, = await channel.history(limit=1).flatten()
+        embed = discord.Embed(title="EconomyX News",
+                              description=f"{latest_message.content}\n\n[Jump to message]({latest_message.jump_url})  |  [Can't see message? Join support server](https://discord.gg/epQZEp933x)",
+                              color=clr)
+        isdev = "(Developer) " if latest_message.author.id == OWNER_ID else ""
+        embed.set_footer(text=f"Set by {isdev}{str(latest_message.author)}, {humanize.precisedelta(latest_message.created_at)} ago", icon_url=latest_message.author.avatar_url)
+        await ctx.send(embed=embed)
 
         
 def setup(bot):

@@ -29,6 +29,7 @@ class player_meta(commands.Cog):
         embed.set_thumbnail(url=user.avatar_url)
         embed.add_field(name="Balance",value=f"${data[3]}")
         embed.add_field(name="Total earnings",value=f"${data[4]}")
+        embed.add_field(name="Lotteries Won", value=f"{data[6]}")
         embed.set_footer(text=f"EconomyX v{self.bot.version}",icon_url=self.bot.user.avatar_url)
         await ctx.send(embed=embed)
     
@@ -100,7 +101,7 @@ class player_meta(commands.Cog):
                 await self.bot.db.commit()
                 await askmessage.edit(content=f"`Success! You now belong to {grabbed_guild.name}!`")
 
-    @commands.cooldown(1,40,BucketType.user)
+    @commands.cooldown(1,10,BucketType.user)
     @customize.command(aliases=["colour","c"])
     async def color(self,ctx,hexcolor : str = None):
         """Allows you to change the color that shows on your profile, and other certain commands, like `help`."""
@@ -141,7 +142,7 @@ class player_meta(commands.Cog):
                         await askmessage.delete() # we'll just delete our message /shrug
                     await self.bot.db.execute("UPDATE e_users SET profilecolor = ? WHERE id = ?",(hexcolor,ctx.author.id,))
                     await self.bot.db.commit()
-                    await ctx.send("`Success! Do e$profile to see your new profile color.`")     
+                    await ctx.send(f"Success! Do {ctx.prefix}profile to see your new profile color.")     
                 
     @commands.command(aliases=["lb"])
     async def leaderboard(self,ctx):

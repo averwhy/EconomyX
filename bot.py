@@ -205,7 +205,7 @@ class EcoBot(commands.Bot):
         days, hours = divmod(hours, 24)
         return [days, hours, minutes, seconds]
 
-default_prefix = 'e-'
+default_prefix = 'e$'
 async def get_prefix(bot, message):
     return bot.prefixes.get(message.author.id, default_prefix)
               
@@ -222,6 +222,7 @@ bot.total_command_errors = 0
 bot.total_command_completetions = 0
 bot.launch_time = datetime.utcnow()
 bot.maintenance = False
+bot.updates_channel = 798014940086403083
 print(bot.launch_time)
 
 async def startup():
