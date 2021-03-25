@@ -16,7 +16,8 @@ from .utils import botmenus
 OWNER_ID = 267410788996743168
 # CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL
 # oh and also credit to kal
-# await kal.credit()
+# await kal.credit(kal=kal)
+# kal to credit
 
 class HelpCommand(commands.HelpCommand):
     """Sup averwhy hopefully this is all easy to understand."""
@@ -26,14 +27,15 @@ class HelpCommand(commands.HelpCommand):
         ctx = self.context
         clr = await ctx.bot.get_player_color(ctx.author)
         if clr is None:
-            clr = discord.Color.dark_gray()
+            if ctx.guild: clr = ctx.guild.me.color
+            else: clr = discord.Color.dark_gray()
         embed = discord.Embed(title="EconomyX Bot Help", color=clr)
-        embed.set_footer(text=f"Do {self.clean_prefix}help [command]")
+        embed.set_footer(text=f"Do {self.clean_prefix}help [command] for more info")
         categories = []
         for cog, cmds in mapping.items():
             filtered = await self.filter_commands(cmds, sort=True)
             if filtered:
-                all_commands = " ".join(f"`{c.name}`" for c in cmds)
+                all_commands = "  ".join(f"`{c.name}`" for c in cmds)
                 if cog and cog.description:
                     embed.add_field(name=cog.qualified_name,
                                     value=f"-> {all_commands}",
@@ -45,7 +47,7 @@ class HelpCommand(commands.HelpCommand):
     async def send_cog_help(self, cog: commands.Cog):
         ctx = self.context
         embed = discord.Embed(title=f"Help for {cog.qualified_name}")
-        embed.set_footer(text=f"Do {self.clean_prefix}help [command] for more help")
+        embed.set_footer(text=f"Do {self.clean_prefix}help [command] for more info")
 
         entries = await self.filter_commands(cog.get_commands(), sort=True)
         for cmd in entries:
@@ -61,7 +63,7 @@ class HelpCommand(commands.HelpCommand):
 
         embed = discord.Embed(title=f"{self.clean_prefix}{command.qualified_name} {command.signature}",
                               description=f"{command.help or command.description}")
-        embed.set_footer(text=f"Do {self.clean_prefix}help [command] for more help")
+        embed.set_footer(text=f"Do {self.clean_prefix}help [command] for more info")
 
         await ctx.send(embed=embed)
 
@@ -75,7 +77,7 @@ class HelpCommand(commands.HelpCommand):
 
         for command in group.commands:
             embed.add_field(name=f"{self.clean_prefix}{command.name} {command.signature}",
-                            value=command.description,
+                            value=(command.description or command.help),
                             inline=False)
 
         await ctx.send(embed=embed)
@@ -163,7 +165,7 @@ class misc(commands.Cog):
         **Protip: See a live count of the users, guilds, and players in the support server!*
         """
         embed = discord.Embed(title="EconomyX Info",description=desc,color=color)
-        embed.set_footer(text=f"Made with Python {platform.python_version()}, enchanced discord.py {discord.__version__}, and aiosqlite {aiosqlite.__version__}",icon_url="https://images-ext-1.discordapp.net/external/0KeQjRAKFJfVMXhBKPc4RBRNxlQSiieQtbSxuPuyfJg/http/i.imgur.com/5BFecvA.png")
+        embed.set_footer(text=f"Made with Python {platform.python_version()}, discord.py {discord.__version__}, and aiosqlite {aiosqlite.__version__}",icon_url="https://images-ext-1.discordapp.net/external/0KeQjRAKFJfVMXhBKPc4RBRNxlQSiieQtbSxuPuyfJg/http/i.imgur.com/5BFecvA.png")
         embed.set_thumbnail(url="https://media.discordapp.net/attachments/460568954968997890/761037965987807232/dpycogs.png")
         await ctx.send(content="https://discord.gg/epQZEp933x", embed=embed)
     

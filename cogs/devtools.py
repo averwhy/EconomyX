@@ -1,12 +1,13 @@
 import discord
 import platform
-import time
+import time, sys
 from discord.ext import commands, tasks
 from discord.ext.commands.cooldowns import BucketType
 from discord.ext.commands import CheckFailure, check
 import asyncio
 import aiosqlite
-from datetime import datetime
+from datetime import datetime, timedelta
+import traceback
 OWNER_ID = 267410788996743168
 
 class devtools(commands.Cog):
@@ -18,6 +19,10 @@ class devtools(commands.Cog):
     
     async def cog_check(self,ctx):
         return ctx.author.id == OWNER_ID
+    
+    @commands.Cog.listener()
+    async def on_message_edit(self, before, after):
+        await self.bot.process_commands(after)
     
     @commands.Cog.listener()
     async def on_guild_join(self, guild):
@@ -104,7 +109,45 @@ Emoji limit:     {guild.emoji_limit}```
     @commands.group(invoke_without_command=True,hidden=True)
     async def dev(self, ctx):
         #bot dev commands
-        await ctx.send("`You're missing one of the below arguements:` ```md\n- reload\n- loadall\n- status <reason>\n- ban <user> <reason>\n```")
+        await ctx.send("invalid subcommand <:PepePoint:759934591590203423>")
+
+    @dev.command()
+    async def force(self, ctx):
+        """Forces a draw of the lottery"""
+        try:
+            print("(force) draw")
+            # So, lets draw, then reset
+            cur = await self.bot.db.execute("SELECT COUNT(*) FROM e_lottery_users")
+            data2 = await cur.fetchone()
+            if int(data2[0]) <= 0:
+                print("no users, drawing again in 12 hours")
+                newdrawingtime = datetime.utcnow() + timedelta(hours=12)
+                await self.bot.db.execute("UPDATE e_lottery_main SET drawingwhen = ?",(newdrawingtime,))
+                await self.bot.db.commit()
+                return await ctx.send("Theres no users in the lottery. I've reset it and it will draw again in 12 hours.")
+            winningamount = (data2[0] * 100)
+            c = await self.bot.db.execute("SELECT * FROM e_lottery_users ORDER BY RANDOM()")
+            winningplayer = await c.fetchone()
+            user = await self.bot.fetch_user(winningplayer[0])
+            ts = self.bot.utc_calc(winningplayer[2])
+            try:
+                await user.send(f"Hey {user.mention}, **You won the lottery in EconomyX!**\nYou bought a ticket {ts[1]}h, {ts[2]}m, {ts[3]}s ago.\nYou won ${winningamount}")
+                await ctx.send(f"{user.mention} ({user.id}) won the lottery, with ${winningamount}. They bought a ticket {ts[1]}h, {ts[2]}m, {ts[3]}s ago.")
+            except:
+                #we cant dm them. Sad!
+                # i guess we'll just pay them and up their stats. oh well
+                pass
+            await self.bot.db.execute("UPDATE e_users SET bal = (bal + ?) WHERE id = ?",(winningamount,winningplayer[0],))
+            await self.bot.db.execute("UPDATE e_users SET lotterieswon = (lotterieswon + 1) WHERE id = ?",(winningplayer[0],))
+            await self.bot.db.execute("DELETE FROM e_lottery_users")
+            newdrawingtime = datetime.utcnow() + timedelta(hours=12)
+            await self.bot.db.execute("UPDATE e_lottery_main SET drawingwhen = ?",(newdrawingtime,))
+            await self.bot.db.execute("UPDATE e_lottery_main SET drawingnum = (drawingnum + 1)")
+        except Exception as error:
+            await ctx.send(f"An error occured while force drawing: `{error}`")
+            print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
+            traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+            return
 
     @dev.command(aliases=["r","reloadall"])
     async def reload(self, ctx):

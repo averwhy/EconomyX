@@ -1,6 +1,6 @@
 import discord
 import platform
-import time
+import time, re
 import random
 import asyncio
 from discord.ext import commands
@@ -18,14 +18,14 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
         self.bot = bot
         self.main_stock_loop.start()
         
-    @tasks.loop(seconds=600)
+    @tasks.loop(seconds=450)
     async def main_stock_loop(self):
         await self.bot.wait_until_ready()
         c = await self.bot.db.execute("SELECT * FROM e_stocks")
         all_stocks = await c.fetchall()
         for s in all_stocks:
             bruh = random.choice([True, False]) # true = add, false = subtract
-            amount = random.uniform(0.1,0.5)
+            amount = random.uniform(0.1,1)
             amount = round(amount,2)
             if bruh:
                 await self.bot.db.execute("UPDATE e_stocks SET points = (points + ?) WHERE stockid = ?",(amount, s[0]))
@@ -64,7 +64,7 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
             t = ""
             for i in playerinvests:
                 tl = self.bot.utc_calc(i[5])
-                t = t + (f"{i[3]} [`{i[0]}`]: invested ${i[2]} at {round(i[4],1)} points {tl[0]}d, {tl[1]}h, {tl[2]}m, {tl[3]}s ago")
+                t = t + (f"{i[3]} [`{i[0]}`]: invested ${i[2]} at {round(i[4],1)} points {tl[0]}d, {tl[1]}h, {tl[2]}m, {tl[3]}s ago\n")
             if t == "":
                 t = "None!"
             embed.add_field(name="Invests",value=t,inline=False)
@@ -96,28 +96,47 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
             counter += 1
         await ctx.send(embed=embed)
     
-    @stock.command(description="Alias for the `portfolio` command.")
-    async def view(self, ctx, user: discord.User = None):
-        await stocks.portfolio(self, ctx, user)
+    @stock.command(description="Views a specified stock.", aliases=["info","show"])
+    async def view(self, ctx, name_or_id):
+        """Shows a stock. You can specify a name or ID."""
+        player = await self.bot.get_player(ctx.author.id)
+        if player is None:
+            return await ctx.send("You dont have a profile! Get one with `e$register`.")
+        stock = await self.bot.get_stock(name_or_id)
+        if not stock:
+            return await ctx.send("I couldn't find that stock, check the name or ID again.")
+        embed = discord.Embed(title=f"{stock[1]}", description=f"ID: {stock[0]}")
+        tl = self.bot.utc_calc(stock[5])
+        embed.add_field(name="Stock Created",value=f"{tl[0]}d, {tl[1]}h, {tl[2]}m, {tl[3]}s ago")
+        upordown = "UP" if stock[3] < stock[2] else "DOWN"
+        embed.add_field(name="Stock Points",value=f"`{round(stock[2],1)}`, {upordown} from `{round(stock[3],1)}` points")
+        if stock[6] != "none":
+            embed.set_thumbnail(url=stock[6])
+        await ctx.send(embed=embed)
+        
     
     @stock.command(aliases=["c"], description="Creates a new stock.")
-    async def create(self, ctx, name: str):
+    async def create(self, ctx, name, icon_url):
+        """Creates a stock. A name and direct link to an image are required."""
         player = await self.bot.get_player(ctx.author.id)
         if player is None:
             return await ctx.send("You dont have a profile! Get one with `e$register`.")
         if player[3] < 1000:
             return await ctx.send(f"Sorry. You have to have at least $1000 to create a stock.\nYour balance: ${player[3]}")
-        playerstock = await self.bot.get_stock(ctx.author.id)
+        playerstock = await self.bot.get_stock_from_player(ctx.author)
         if playerstock is not None:
-            return await ctx.send("You already have a stock. If you want to rename it, use `e$stock rename <name>`")
+            return await ctx.send("You already have a stock. If you want to edit it, use `e$stock edit`")
         if len(name) > 5:
             return await ctx.send("The stock name must be less than or equal to 5 characters.")
         if not name.isalnum():
             return await ctx.send("Stock names must be alphanumeric.")
         name = name.upper()
+        result = re.findall(r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+", icon_url)
+        if result == []:
+            return await ctx.send("Invalid URL provided.")
         
         stockid = random.randint(0000,9999)
-        msg = await ctx.send(f"Stock name: {name}\nID: {stockid}\nStarting points: 10\n**Are you sure you want to create this stock for $1000?**")
+        msg = await ctx.send(f"Stock name: {name}\nIcon URL: <{icon_url}>\nID: {stockid}\nStarting points: 10\n**Are you sure you want to create this stock for $1000?**")
         await msg.add_reaction("\U00002705")
         def check(reaction, user):
             return user == ctx.author and str(reaction.emoji) == '✅'
@@ -126,23 +145,21 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
         except asyncio.TimeoutError:
             for i in msg.reactions:
                 try: await i.remove()
-                except: pass
+                except: continue
+            await msg.delete()
             await msg.edit(content="Timed out after 30 seconds.")
         else:
-            try:
-                await ctx.reply('👍')
-            except:
-                await ctx.send('👍')
             stock_created_at = datetime.utcnow()
             await self.bot.db.execute("UPDATE e_users SET bal = (bal - 1000) WHERE id = ?",(ctx.author.id,))
-            await self.bot.db.execute("INSERT INTO e_stocks VALUES (?, ?, 10.0, 10.0, ?, ?)",(stockid, name, ctx.author.id, stock_created_at,))
+            await self.bot.db.execute("INSERT INTO e_stocks VALUES (?, ?, 10.0, 10.0, ?, ?, ?)",(stockid, name, ctx.author.id, stock_created_at, icon_url,))
+            await ctx.reply('👍')
     
     @stock.command(description="Deletes an owned stock. Please consider renaming first, before deleting. You do not get refunded the money you paid to create the stock.")
     async def delete(self, ctx):
         player = await self.bot.get_player(ctx.author.id)
         if player is None:
             return await ctx.send("You dont have a profile! Get one with `e$register`.")
-        playerstock = await self.bot.get_stock(ctx.author.id)
+        playerstock = await self.bot.get_stock_from_player(ctx.author)
         if playerstock is None:
             return await ctx.send("You don't have a stock. If you want make one, use `e$stock create <name>`")
         
@@ -167,33 +184,57 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
             try: await i.remove()
             except Exception as e: print(e)
         
-    @stock.command(aliases=["r"], description="Renames an owned stock, costs $100.")
-    async def rename(self, ctx, name: str):
+    @stock.command(aliases=["e"], description="Edits a stock. Don't invoke with and arguments.")
+    async def edit(self, ctx):
         player = await self.bot.get_player(ctx.author.id)
         if player is None:
             await ctx.send("You dont have a profile! Get one with `e$register`.")
             return
-        playerstock = await self.bot.get_stock(ctx.author.id)
+        playerstock = await self.bot.get_stock_from_player(ctx.author.id)
         if playerstock is None:
             return await ctx.send("You don't have a stock. If you want make one, use `e$stock create <name>`")
-        if not name.isalnum():
-            return await ctx.send("New name must be alphanumeric. (A-Z, 0-9)")
         
-        name = name.upper()
-        msg = await ctx.send(f"Old stock name: {playerstock[1]}\nNew Stock name: {name}\n**Are you sure you want to rename this stock for $100?**")
-        
-        def check(reaction, user):
-            return user == ctx.author and str(reaction.emoji) == '✅'
+        rlist = ['1\N{variation selector-16}\N{combining enclosing keycap}', '2\N{variation selector-16}\N{combining enclosing keycap}', '❌']
+        confirm = await ctx.send(f"What do you want to edit?\n{rlist[0]} : `Name`\n{rlist[1]} : `Icon`")
+        for r in rlist:
+            await confirm.add_reaction(r)
+        def check(r, u):
+            return r.message.id == confirm.id and str(r.emoji) in rlist and u.id == ctx.author.id
         try:
             reaction, user = await self.bot.wait_for('reaction_add', timeout=30, check=check)
         except asyncio.TimeoutError:
-            pass
-        else:
+            try: await confirm.clear_reactions()
+            except: pass
+            await confirm.edit("Timed out after 30s.")
+        if str(reaction) == rlist[0]:
+            msg = await ctx.reply("What should the new stock name be? (Must be alphanumeric.)")
+            def check(message : discord.Message) -> bool: 
+                return message.author == ctx.author and message.channel.id == ctx.channel.id
             try:
-                await ctx.reply('👍')
-            except:
-                await ctx.send('👍')
-            await self.bot.db.execute("UPDATE e_stocks SET ",(name, ctx.author.id,))
+                message = await bot.wait_for('message', timeout = 30, check = check)
+            except asyncio.TimeoutError: 
+                return await ctx.edit("")            
+            # This will be executed if the author responded properly
+            else:
+                name = message.content
+                if not name.isalnum():
+                    return await ctx.send("New name must be alphanumeric. (A-Z, 0-9)")
+                
+                name = name.upper()
+                msg = await ctx.send(f"Old stock name: {playerstock[1]}\nNew Stock name: {name}\n**Are you sure you want to rename this stock for $100?**")
+                
+                def check(reaction, user):
+                    return user == ctx.author and str(reaction.emoji) == '✅'
+                try:
+                    reaction, user = await self.bot.wait_for('reaction_add', timeout=30, check=check)
+                except asyncio.TimeoutError:
+                    pass
+                else:
+                    try:
+                        await ctx.reply('👍')
+                    except:
+                        await ctx.send('👍')
+                    await self.bot.db.execute("UPDATE e_stocks SET ",(name, ctx.author.id,))
     
     # @stock.command(description="Starts a interative command to view FAQ's about stocks.")
     # async def faq(self, ctx):
@@ -220,15 +261,10 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
         if player[3] < amount:
             await ctx.send(f"That investment is too big. You only have ${player[3]}.")
             return
-        cur = await self.bot.db.execute("SELECT * FROM e_stocks WHERE stockid = ?",(name_or_id,))
-        stock = await cur.fetchone()
+        stock = await self.bot.get_stock(name_or_id)
         if stock is None:
-            name_or_id = name_or_id.upper()
-            cur = await self.bot.db.execute("SELECT * FROM e_stocks WHERE name = ?",(name_or_id,))
-            stock = await cur.fetchone()
-            if stock is None:
-                await ctx.send("I couldn't find that stock. Double check the name/ID.")
-                return
+            await ctx.send("I couldn't find that stock. Double check the name/ID.")
+            return
             
         cur = await self.bot.db.execute("SELECT * FROM e_invests WHERE stockid = ? AND userid = ?",(stock[0],ctx.author.id,))
         investment = await cur.fetchone()

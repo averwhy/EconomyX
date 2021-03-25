@@ -205,17 +205,17 @@ class EcoBot(commands.Bot):
         days, hours = divmod(hours, 24)
         return [days, hours, minutes, seconds]
 
-default_prefix = 'e$'
+default_prefix = 'e-'
 async def get_prefix(bot, message):
     return bot.prefixes.get(message.author.id, default_prefix)
               
 bot = EcoBot(command_prefix=get_prefix,description=desc,intents=discord.Intents(reactions=True, messages=True, guilds=True, members=True))
 
-bot.initial_extensions = ["jishaku","cogs.player_meta","cogs.devtools","cogs.games","cogs.money_meta","cogs.misc","cogs.jobs","cogs.stocks","cogs.jsk_override"]
+bot.initial_extensions = ["jishaku","cogs.player_meta","cogs.devtools","cogs.games","cogs.money_meta","cogs.misc","cogs.jobs","cogs.stocks","cogs.jsk_override", "cogs.Lottery"]
 with open("TOKEN.txt",'r') as t:
     TOKEN = t.readline()
 bot.time_started = time.localtime()
-bot.version = '0.2.1'
+bot.version = '0.3.0'
 bot.newstext = None
 bot.news_set_by = "no one yet.."
 bot.total_command_errors = 0
@@ -227,12 +227,12 @@ print(bot.launch_time)
 async def startup():
     bot.db = await aiosqlite.connect('economyx.db')
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_users (id int, name text, guildid int, bal int, totalearnings int, profilecolor text, lotterieswon int)")
-    await bot.db.execute("CREATE TABLE IF NOT EXISTS e_stocks (stockid int, name text, points double, previouspoints double, ownerid int, created text)")
+    await bot.db.execute("CREATE TABLE IF NOT EXISTS e_stocks (stockid int, name text, points double, previouspoints double, ownerid int, created text, icon_url blob)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_invests (stockid int, userid int, invested int, stockname text, invested_at double, invested_date blob)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_lottery_users (userid int, username text, boughtwhen blob)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_lottery_main (drawingwhen blob, drawingnum int)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_prefixes (userid int, prefix blob, setwhen blob)")
-    await bot.db.execute("CREATE TABLE IF NOT EXISTS e_balance_logging (userid int, amount int, diff int, happenedwhen blob, fromid int, reason text, command text)")
+    #await bot.db.execute("CREATE TABLE IF NOT EXISTS e_crypto (userid int)")
     print("Database connected")
     
     bot.backup_db = await aiosqlite.connect('ecox_backup.db')

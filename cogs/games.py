@@ -44,100 +44,95 @@ class games(commands.Cog):
             data = await self.bot.on_bet_loss(ctx.author,amount) # returns new balance
             await ctx.send(f"Lost ${amount}\nNew balance: ${(data-amount)}")
             
-    @commands.group(aliases=["rps"],invoke_without_command=True)
-    async def rockpaperscissors(self, ctx, description="Rock paper scissors. "):
-        await ctx.send("Usage: `e$rps <rock/paper/scissors>`")
+    @commands.command(aliases=['rl'])
+    async def roulette(self, ctx, amount):
+        """Roulette gambling command. Starts a propmpt in which the user reacts with the color they wish to bet."""
+        player = await self.bot.get_player(ctx.author.id)
+        if player is None:
+            await ctx.send("You dont have a profile! Get one with `e$register`.")
+            return
+        if amount.lower() == "all":
+            amount = player[3]
+        amount = int(amount)
+        if amount != amount:
+            await ctx.send("Thats not a valid amount. Nice try, though")
+            return
+        if player[3] < amount:
+            await ctx.send(f"That bet is too big. You only have ${player[3]}.")
+            return
+        if amount < 5:
+            await ctx.send("Too small of a bet. (Minimum 5)")
+            return
+        
+        confirm = await ctx.send("Choose one of the 3 colors to bet on `(🔴: 2x, ⚫: 2x, 🟢: 35x)`:")
+        rlist = ['🔴', '⚫', '🟢', '❌']
+        for r in rlist:
+            await confirm.add_reaction(r)
+        def check(r, u):
+            return r.message.id == confirm.id and str(r.emoji) in rlist and u.id == ctx.author.id
+        try:
+            reaction, user = await self.bot.wait_for('reaction_add', timeout=60, check=check)
+        except asyncio.TimeoutError:
+            await confirm.delete()
+            return await ctx.reply("Timed out after 60s.")
+        result = random.choices(rlist, weights=(48.6, 48.6, 2.799999999999997, 0), k=1)
+        if str(reaction.emoji) == rlist[3]: #cancel
+            await confirm.delete()
+            return await ctx.reply("Cancelled, you did not lose/gain any money.")
+        if result[0] == rlist[2]: # green
+            newamount = amount * 35
+            await self.bot.db.execute("UPDATE e_users SET bal = (bal + ?) WHERE id = ?",(newamount, ctx.author.id,))
+            await self.bot.db.execute("UPDATE e_users SET totalearnings = (totalearnings + ?) WHERE id = ?",(newamount, ctx.author.id,))
+            return await ctx.send(f"Your choice: {str(reaction.emoji)}, result: {str(result[0])}\n**You won BIG!**\nMoney earned: ${int(amount * 35)} (`${int(amount)} x 35`)")
+        elif reaction.emoji == result[0]:
+            await self.bot.db.execute("UPDATE e_users SET bal = (bal + ?) WHERE id = ?",(amount, ctx.author.id,))
+            await self.bot.db.execute("UPDATE e_users SET totalearnings = (totalearnings + ?) WHERE id = ?",(amount, ctx.author.id,))
+            return await ctx.send(f"Your choice: {str(reaction.emoji)}, result: {str(result[0])}\n**You won!**\nMoney earned: ${int(amount)}")
+        else:
+            await self.bot.db.execute("UPDATE e_users SET bal = (bal - ?) WHERE id = ?",(amount, ctx.author.id,))
+            return await ctx.send(f"Your choice: {str(reaction.emoji)}, result: {str(result[0])}\n**You lost.**\nMoney lost: ${int(amount)}")
+        
     
-    @commands.cooldown(1,5,BucketType.user)
-    @rockpaperscissors.command(aliases=["p"], description="Paper")
-    async def paper(self, ctx):
+    @commands.group(aliases=["rps"],invoke_without_command=True, description="Rock paper scissors.")
+    async def rockpaperscissors(self, ctx, amount, choice):
+        """Rock paper scissor game. `amount` is money you want to bet, and choice must be `rock`, `paper`, or `scissor` (singular, no 's)"""
+        summary = ""
         player = await self.bot.get_player(ctx.author.id)
         if player is None:
             await ctx.send("You dont have a profile! Get one with `e$register`.")
             return
-        if player[3] < 100:
-            await ctx.send(f"Sorry. You have to have at least $100 to play rock paper scissors.\nYour balance: ${player[3]}")
+        if len(choice) < 4 or len(choice) > 7:
+            return await ctx.send("Invalid choice.")
+        if amount.lower() == "all":
+            amount = player[3]
+        if amount != amount:
+            await ctx.send("Thats not a valid amount. Nice try, though")
             return
-        
+        if player[3] < amount:
+            await ctx.send(f"That bet is too big. You only have ${player[3]}.")
+            return
+        if amount < 5:
+            await ctx.send("Too small of a bet. (Minimum 5)")
+            return
         rand = random.randint(0,2)
-        choices = ["paper", "scissors", "rock"]
+        choices = ["paper", "scissor", "rock"]
+        if not choice.strip() in choices:
+            return await ctx.send("It looks like you didn't specify `rock`, `paper`, or `scissor` (singular, no 's).")
         outcome_list = ["draw", "lose", "win"]
-        result = (choices.index("paper")+rand)%3
-        final_outcome = outcome_list[rand]
-        m = ("I drew {}, you drew paper.".format(choices[result]))
-        if final_outcome == "win":
-            await ctx.send(f"Hey, you won.\n{m}\nHeres $100.")
-            await self.bot.db.execute("UPDATE e_users SET bal = (bal + 100) WHERE id = ?",(ctx.author.id,))
-            await self.bot.db.execute("UPDATE e_users SET totalearnings = (totalearnings + 100) WHERE id = ?",(ctx.author.id,))
-            return
-        if final_outcome == "lose":
-            await ctx.send(f"Damn, I won.\n{m}\nThanks for the $100.")
-            await self.bot.db.execute("UPDATE e_users SET bal = (bal - ?) WHERE id = ?",(ctx.author.id,))
-            return
-        if final_outcome == "draw":
-            await ctx.send(f"Oh?\n{m}\nTie. None of us pay")
-            return
-        
-    @commands.cooldown(1,5,BucketType.user)
-    @rockpaperscissors.command(aliases=["r"], description="Rock")
-    async def rock(self, ctx):
-        player = await self.bot.get_player(ctx.author.id)
-        if player is None:
-            await ctx.send("You dont have a profile! Get one with `e$register`.")
-            return
-        if player[3] < 100:
-            await ctx.send(f"Sorry. You have to have at least $100 to play rock paper scissors.\nYour balance: ${player[3]}")
-            return
-        
-        rand = random.randint(0,2)
-        choices = ["paper", "scissors", "rock"]
-        outcome_list = ["draw", "lose", "win"]
-        result = (choices.index("rock")+rand)%3
-        final_outcome = outcome_list[rand]
-        m = ("I drew {}, you drew rock".format(choices[result]))
-        if final_outcome == "win":
-            await ctx.send(f"Hey, you won.\n{m}\nHeres $100.")
-            await self.bot.db.execute("UPDATE e_users SET bal = (bal + 100) WHERE id = ?",(ctx.author.id,))
-            await self.bot.db.execute("UPDATE e_users SET totalearnings = (totalearnings + 100) WHERE id = ?",(ctx.author.id,))
-            return
-        if final_outcome == "lose":
-            await ctx.send(f"Damn, I won.\n{m}\nThanks for the $100.")
-            await self.bot.db.execute("UPDATE e_users SET bal = (bal - 100) WHERE id = ?",(ctx.author.id,))
-            return
-        if final_outcome == "draw":
-            await ctx.send(f"Oh?\n{m}\nTie. None of us pay")
-            return
-        
-    @commands.cooldown(1,5,BucketType.user)
-    @rockpaperscissors.command(aliases=["s","scissor"], description="Scissors")
-    async def scissors(self, ctx):
-        player = await self.bot.get_player(ctx.author.id)
-        if player is None:
-            await ctx.send("You dont have a profile! Get one with `e$register`.")
-            return
-        if player[3] < 100:
-            await ctx.send(f"Sorry. You have to have at least $100 to play rock paper scissors.\nYour balance: ${player[3]}")
-            return
-        
-        rand = random.randint(0,2)
-        choices = ["paper", "scissors", "rock"]
-        outcome_list = ["draw", "lose", "win"]
-        result = (choices.index("scissors")+rand)%3
-        final_outcome = outcome_list[rand]
-        m = ("I drew {}, you drew scissors.".format(choices[result]))
-        if final_outcome == "win":
-            await ctx.send(f"Hey, you won.\n{m}\nHeres $100.")
-            await self.bot.db.execute("UPDATE e_users SET bal = (bal + 100) WHERE id = ?",(ctx.author.id,))
-            await self.bot.db.execute("UPDATE e_users SET totalearnings = (totalearnings + 100) WHERE id = ?",(ctx.author.id,))
-            return
-        if final_outcome == "lose":
-            await ctx.send(f"Damn, I won.\n{m}\nThanks for the $100.")
-            await self.bot.db.execute("UPDATE e_users SET bal = (bal - 100) WHERE id = ?",(ctx.author.id,))
-            return
-        if final_outcome == "draw":
-            await ctx.send(f"Oh?\n{m}\nTie. None of us pay")
-            return
-        
+        result = (choices.index(choice)+rand)%3
+        summary += "I drew {}, you {}\n".format(choices[result], outcome_list[rand])
+        if outcome_list[rand] == "draw":
+            summary += "You lost no money."
+        elif outcome_list[rand] == "lose":
+            summary += f"You lost ${amount}."
+            await self.bot.db.execute("UPDATE e_users SET bal = (bal - ?) WHERE id = ?",(amount, ctx.author.id,))
+        elif outcome_list[rand] == "win":
+            summary += f"You won ${amount}"
+            await self.bot.db.execute("UPDATE e_users SET bal = (bal + ?) WHERE id = ?",(amount, ctx.author.id,))
+            await self.bot.db.execute("UPDATE e_users SET totalearnings = (totalearnings + ?) WHERE id = ?",(amount, ctx.author.id,))
+        await ctx.reply(summary)
+            
+
     @commands.cooldown(1,15,BucketType.user)
     @commands.command(description="Guess game with money. You have 5 chances to guess the number randomly chosen between 1-10.\nThis amounts to a 50/50 chance.")
     async def guess(self, ctx, amount: int):
@@ -192,7 +187,30 @@ class games(commands.Cog):
                 else:
                     await ctx.send("Guess a **number**!")
                 
+    # @commands.command(aliases=['bj'])
+    # async def blackjack(self, ctx, amount):
+    #     values = {'Two':2, 'Three':3, 'Four':4, 'Five':5, 'Six':6, 'Seven':7, 'Eight':8, 'Nine':9, 'Ten':10, 'Jack':10,'Queen':10, 'King':10, 'Ace':11}
         
+    #     player = await self.bot.get_player(ctx.author.id)
+    #     if player is None:
+    #         await ctx.send("You dont have a profile! Get one with `e$register`.")
+    #         return
+    #     if amount.lower() == "all":
+    #         amount = player[3]
+    #     amount = int(amount)
+    #     if amount != amount:
+    #         await ctx.send("Thats not a valid amount. Nice try, though")
+    #         return
+    #     if player[3] < amount:
+    #         await ctx.send(f"That bet is too big. You only have ${player[3]}.")
+    #         return
+    #     if amount < 5:
+    #         await ctx.send("Too small of a bet. (Minimum 5)")
+    #         return
         
+    #     player_cards = []
+    #     dealer_cards = []
+    #     dealer_cards.append()
+
 def setup(bot):
     bot.add_cog(games(bot))

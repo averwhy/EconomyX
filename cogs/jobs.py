@@ -15,7 +15,7 @@ class jobs(commands.Cog):
     def __init__(self,bot):
         self.bot = bot
     
-    @commands.cooldown(1,330,BucketType.user)
+    @commands.cooldown(1,300,BucketType.user)
     @commands.command(aliases=["w"])
     async def work(self,ctx):
         """Work. You earn a random number between 1 and 500."""
