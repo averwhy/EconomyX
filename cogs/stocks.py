@@ -110,7 +110,7 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
         embed.add_field(name="Stock Created",value=f"{tl[0]}d, {tl[1]}h, {tl[2]}m, {tl[3]}s ago")
         upordown = "UP" if stock[3] < stock[2] else "DOWN"
         embed.add_field(name="Stock Points",value=f"`{round(stock[2],1)}`, {upordown} from `{round(stock[3],1)}` points")
-        if stock[6] != "none":
+        if stock[6].startswith("http"):
             embed.set_thumbnail(url=stock[6])
         await ctx.send(embed=embed)
         
