@@ -3,14 +3,11 @@ import typing
 import discord
 import platform
 import time
-import random
-import asyncio
-import re, os
+import os
 import humanize
 from datetime import datetime
 from discord.ext import commands, menus
 from discord.ext.commands.cooldowns import BucketType
-from discord.ext.commands import CheckFailure, check
 import aiosqlite
 import inspect
 from .utils import botmenus

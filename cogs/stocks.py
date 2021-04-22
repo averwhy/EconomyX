@@ -1,11 +1,8 @@
 import discord
-import platform
-import time, re
+import re
 import random
 import asyncio
 from discord.ext import commands
-from discord.ext.commands.cooldowns import BucketType
-from discord.ext.commands import CheckFailure, check
 from discord.ext import tasks
 from datetime import datetime
 OWNER_ID = 267410788996743168
