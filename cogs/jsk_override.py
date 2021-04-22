@@ -5,7 +5,6 @@ import discord
 import re
 from typing import Union
 from collections import namedtuple
-from jishaku.features.baseclass import Feature
 from jishaku.meta import __version__
 
 # class CustomDebugCog(*OPTIONAL_FEATURES, *STANDARD_FEATURES):
