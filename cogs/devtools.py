@@ -1,9 +1,6 @@
 import discord
-import platform
-import time, sys
+import sys
 from discord.ext import commands, tasks
-from discord.ext.commands.cooldowns import BucketType
-from discord.ext.commands import CheckFailure, check
 import asyncio
 import aiosqlite
 from datetime import datetime, timedelta

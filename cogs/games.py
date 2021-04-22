@@ -1,11 +1,7 @@
-import discord
-import platform
-import time
 import random
 import asyncio
 from discord.ext import commands
 from discord.ext.commands.cooldowns import BucketType
-from discord.ext.commands import CheckFailure, check
 OWNER_ID = 267410788996743168
 
 class games(commands.Cog):

@@ -5,8 +5,8 @@ import sys, os
 import traceback
 import asyncio
 import time
-import random, typing
-from datetime import datetime, timedelta
+import typing
+from datetime import datetime
 os.environ["JISHAKU_NO_DM_TRACEBACK"] = "True" 
 os.environ["JISHAKU_HIDE"] = "True"
 
