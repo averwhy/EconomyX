@@ -62,7 +62,7 @@ class player_meta(commands.Cog):
             def check(reaction, user):
                 return user == ctx.message.author and str(reaction.emoji) == "\U00002705"
             try:
-                reaction, user = await bot.wait_for('reaction_add', timeout=10, check=check)
+                reaction, user = await self.bot.wait_for('reaction_add', timeout=10, check=check)
             except asyncio.TimeoutError:
                 await askmessage.edit(content="`Prompt timed out. Try again`")
             else:
@@ -83,10 +83,10 @@ class player_meta(commands.Cog):
                 return # cancels rest of function
             askmessage = await ctx.send(f"`Are you sure you want to change your guild to {grabbed_guild.name}?`")
             await askmessage.add_reaction(emoji="\U00002705") # white check mark
-            def check(reaction, user):
+            def check2(reaction, user):
                 return user == ctx.message.author and str(reaction.emoji) == "\U00002705"
             try:
-                reaction, user = await self.bot.wait_for('reaction_add', timeout=10, check=check)
+                reaction, user = await self.bot.wait_for('reaction_add', timeout=10, check=check2)
             except asyncio.TimeoutError:
                 await askmessage.edit(content="`Prompt timed out. Try again`")
             else:
