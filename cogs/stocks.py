@@ -205,10 +205,10 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
             await confirm.edit("Timed out after 30s.")
         if str(reaction) == rlist[0]:
             msg = await ctx.reply("What should the new stock name be? (Must be alphanumeric.)")
-            def check(message : discord.Message) -> bool: 
+            def check2(message : discord.Message) -> bool: 
                 return message.author == ctx.author and message.channel.id == ctx.channel.id
             try:
-                message = await bot.wait_for('message', timeout = 30, check = check)
+                message = await self.bot.wait_for('message', timeout = 30, check = check2)
             except asyncio.TimeoutError: 
                 return await ctx.edit("")            
             # This will be executed if the author responded properly
@@ -220,10 +220,10 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
                 name = name.upper()
                 msg = await ctx.send(f"Old stock name: {playerstock[1]}\nNew Stock name: {name}\n**Are you sure you want to rename this stock for $100?**")
                 
-                def check(reaction, user):
+                def check3(reaction, user):
                     return user == ctx.author and str(reaction.emoji) == '✅'
                 try:
-                    reaction, user = await self.bot.wait_for('reaction_add', timeout=30, check=check)
+                    reaction, user = await self.bot.wait_for('reaction_add', timeout=30, check=check3)
                 except asyncio.TimeoutError:
                     pass
                 else:
