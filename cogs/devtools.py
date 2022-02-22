@@ -213,20 +213,20 @@ Emoji limit:     {guild.emoji_limit}```
 
     @dev.command()
     async def stop(self, ctx):
-        askmessage = await ctx.send("`you sure?`")
+        askmessage = await ctx.send("you sure?")
         def check(m):
             newcontent = m.content.lower()
             return newcontent == 'yea' and m.channel == ctx.channel and m.author.id == OWNER_ID
         try:
             await self.bot.wait_for('message', timeout=5, check=check)
         except asyncio.TimeoutError:
-            await askmessage.edit(content="`Timed out. haha why didnt you respond you idiot`")
+            await askmessage.edit(content="timed out. haha why didnt you respond you idiot")
         else:
-            await ctx.send("`bye`")
+            await ctx.send("bye lol")
             print(f"Bot is being stopped by {ctx.message.author} ({ctx.message.id})")
             await self.bot.db.commit()
             await self.bot.db.close()
-            await self.bot.logout()
+            await self.bot.close()
         
     @dev.group(invoke_without_command=True)
     async def sql(self, ctx):

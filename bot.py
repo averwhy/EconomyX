@@ -89,13 +89,13 @@ class EcoBot(commands.Bot):
             return m.content.lower() == 'yes' and m.channel == ctx.channel and m.author == ctx.author
         user_response = await bot.wait_for('message', check=check)
         msg = await ctx.send(
-"""**If you proceed, you will __permanently__ lose the following data:**
-    - Your profile (money, total earned amount, custom color, etc)
-    - Your invests (money invested, etc)
-    - Any owned stock (The fee spent to create it, its points, etc (all investers get refunded))
-*All* data involving you will be deleted.
-**Are you sure you would like to continue?** ***__There is no going back.__***
-""")
+        """**If you proceed, you will __permanently__ lose the following data:**
+            - Your profile (money, total earned amount, custom color, etc)
+            - Your invests (money invested, etc)
+            - Any owned stock (The fee spent to create it, its points, etc (all investers get refunded))
+        *All* data involving you will be deleted.
+        **Are you sure you would like to continue?** ***__There is no going back.__***
+        """)
         did_they = await self.prompt(ctx.author.id, msg, timeout=30)
         if did_they:
             await bot.db.execute("DELETE FROM e_users WHERE id = ?",(ctx.author.id,))
@@ -106,7 +106,6 @@ class EcoBot(commands.Bot):
             await ctx.send("Canceled. None of your data was deleted.")
         if did_they is None: return
         await msg.delete()
-        #await i_msg.delete()
         return
         
     async def usercheck(self,uid):
@@ -211,11 +210,11 @@ async def get_prefix(bot, message):
               
 bot = EcoBot(command_prefix=get_prefix,description=desc,intents=discord.Intents(reactions=True, messages=True, guilds=True, members=True))
 
-bot.initial_extensions = ["jishaku","cogs.player_meta","cogs.devtools","cogs.games","cogs.money_meta","cogs.misc","cogs.jobs","cogs.stocks","cogs.jsk_override", "cogs.Lottery"]
+bot.initial_extensions = ["jishaku","cogs.player_meta","cogs.devtools","cogs.games","cogs.money_meta","cogs.misc","cogs.jobs","cogs.stocks","cogs.jsk_override", "cogs.lottery"]
 with open("TOKEN.txt",'r') as t:
     TOKEN = t.readline()
 bot.time_started = time.localtime()
-bot.version = '0.3.0'
+bot.version = '0.3.1'
 bot.newstext = None
 bot.news_set_by = "no one yet.."
 bot.total_command_errors = 0
@@ -308,4 +307,4 @@ for cog in bot.initial_extensions:
         traceback.print_exc()
 asyncio.set_event_loop(asyncio.SelectorEventLoop())
 
-bot.run(TOKEN, bot = True, reconnect = True)
+bot.run(TOKEN)
