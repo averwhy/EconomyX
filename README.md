@@ -15,7 +15,7 @@
  - Daily lottery system
  - Stock and investment system
  - User profiles with customization
- - 
+ - Opt-in system made with privacy in mind
 
 ### Note
 I would **not** recommend hosting your own, since you can just invite the bot I'm hosting using this link: https://discord.com/api/oauth2/authorize?client_id=780480654277476352&permissions=0&scope=bot
