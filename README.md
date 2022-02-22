@@ -1,5 +1,5 @@
 ![Discord](https://img.shields.io/discord/798014878018174976?style=flat-square)
-![GitHub last commit](https://img.shields.io/github/last-commit/averwhy/EconomyX?style=flat-squaret)
+![GitHub last commit](https://img.shields.io/github/last-commit/averwhy/EconomyX?style=flat-square)
 ![GitHub top language](https://img.shields.io/github/languages/top/averwhy/EconomyX?color=3572a5&style=flat-square)
 ![GitHub issues](https://img.shields.io/github/issues/averwhy/EconomyX?style=flat-square)
 ![GitHub](https://img.shields.io/github/license/averwhy/EconomyX?style=flat-square)
