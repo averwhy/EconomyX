@@ -5,7 +5,7 @@ import platform
 import time
 import os
 import humanize
-from datetime import datetime
+from datetime import datetime, timezone
 from discord.ext import commands, menus
 from discord.ext.commands.cooldowns import BucketType
 import aiosqlite
@@ -263,12 +263,12 @@ class misc(commands.Cog):
         if clr is None:
             if ctx.guild: clr = ctx.guild.me.color
             else: clr = discord.Color.dark_gray()
-        latest_message, = await channel.history(limit=1).flatten()
+        latest_message, = [message async for message in channel.history(limit=1)]
         embed = discord.Embed(title="EconomyX News",
                               description=f"{latest_message.content}\n\n[Jump to message]({latest_message.jump_url})  |  [Can't see message? Join support server](https://discord.gg/epQZEp933x)",
                               color=clr)
         isdev = "(Developer) " if latest_message.author.id == OWNER_ID else ""
-        embed.set_footer(text=f"Set by {isdev}{str(latest_message.author)}, {humanize.precisedelta(latest_message.created_at)} ago", icon_url=latest_message.author.avatar_url)
+        embed.set_footer(text=f"Set by {isdev}{str(latest_message.author)}, {humanize.precisedelta(latest_message.created_at.replace(tzinfo=timezone.utc))} ago", icon_url=latest_message.author.avatar_url)
         await ctx.send(embed=embed)
 
         
