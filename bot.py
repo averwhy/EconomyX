@@ -156,7 +156,7 @@ class EcoBot(commands.Bot):
     async def update_balance(self, userobj, **kwargs):
         """Updates balance."""
         
-        player = bot.get_player(userobj.id)
+        player = await bot.get_player(userobj.id)
         if player is None:
             return False
         amount = kwargs['amount'] # Required
@@ -204,17 +204,17 @@ class EcoBot(commands.Bot):
         days, hours = divmod(hours, 24)
         return [days, hours, minutes, seconds]
 
-default_prefix = 'e$'
+default_prefix = 'y$'
 async def get_prefix(bot, message):
     return bot.prefixes.get(message.author.id, default_prefix)
               
-bot = EcoBot(command_prefix=get_prefix,description=desc,intents=discord.Intents(reactions=True, messages=True, guilds=True, members=True))
+bot = EcoBot(command_prefix=get_prefix,description=desc,intents=discord.Intents(reactions=True, messages=True, guilds=True, members=True, message_content=True))
 
 bot.initial_extensions = ["jishaku","cogs.player_meta","cogs.devtools","cogs.games","cogs.money_meta","cogs.misc","cogs.jobs","cogs.stocks","cogs.jsk_override", "cogs.lottery"]
 with open("TOKEN.txt",'r') as t:
     TOKEN = t.readline()
 bot.time_started = time.localtime()
-bot.version = '0.3.1'
+bot.version = '0.4.0'
 bot.newstext = None
 bot.news_set_by = "no one yet.."
 bot.total_command_errors = 0
@@ -225,7 +225,7 @@ bot.updates_channel = 798014940086403083
 print(bot.launch_time)
 
 async def startup():
-    bot.db = await aiosqlite.connect('economyx.db')
+    bot.db = await aiosqlite.connect('economyy.db')
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_users (id int, name text, guildid int, bal int, totalearnings int, profilecolor text, lotterieswon int)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_stocks (stockid int, name text, points double, previouspoints double, ownerid int, created text, icon_url blob)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_invests (stockid int, userid int, invested int, stockname text, invested_at double, invested_date blob)")
@@ -305,6 +305,6 @@ for cog in bot.initial_extensions:
     except Exception as e:
         print(f"Failed to load {cog}, error:\n", file=sys.stderr)
         traceback.print_exc()
+        
 asyncio.set_event_loop(asyncio.SelectorEventLoop())
-
 bot.run(TOKEN)

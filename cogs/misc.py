@@ -28,7 +28,7 @@ class HelpCommand(commands.HelpCommand):
             if ctx.guild: clr = ctx.guild.me.color
             else: clr = discord.Color.dark_gray()
         embed = discord.Embed(title="EconomyX Bot Help", color=clr)
-        embed.set_footer(text=f"Do {self.clean_prefix}help [command] for more info")
+        embed.set_footer(text=f"Do {ctx.clean_prefix}help [command] for more info")
         categories = []
         for cog, cmds in mapping.items():
             filtered = await self.filter_commands(cmds, sort=True)
@@ -45,11 +45,11 @@ class HelpCommand(commands.HelpCommand):
     async def send_cog_help(self, cog: commands.Cog):
         ctx = self.context
         embed = discord.Embed(title=f"Help for {cog.qualified_name}")
-        embed.set_footer(text=f"Do {self.clean_prefix}help [command] for more info")
+        embed.set_footer(text=f"Do {ctx.clean_prefix}help [command] for more info")
 
         entries = await self.filter_commands(cog.get_commands(), sort=True)
         for cmd in entries:
-            embed.add_field(name=f"{self.clean_prefix}{cmd.name} {cmd.signature}",
+            embed.add_field(name=f"{ctx.clean_prefix}{cmd.name} {cmd.signature}",
                             value=f"{cmd.help or cmd.description}",
                             inline=False)
 
@@ -59,9 +59,9 @@ class HelpCommand(commands.HelpCommand):
     async def send_command_help(self, command: commands.Command):
         ctx = self.context
 
-        embed = discord.Embed(title=f"{self.clean_prefix}{command.qualified_name} {command.signature}",
+        embed = discord.Embed(title=f"{ctx.clean_prefix}{command.qualified_name} {command.signature}",
                               description=f"{command.help or command.description}")
-        embed.set_footer(text=f"Do {self.clean_prefix}help [command] for more info")
+        embed.set_footer(text=f"Do {ctx.clean_prefix}help [command] for more info")
 
         await ctx.send(embed=embed)
 
@@ -69,12 +69,12 @@ class HelpCommand(commands.HelpCommand):
     async def send_group_help(self, group: commands.Group):
         ctx = self.context
 
-        embed = discord.Embed(title=f"{self.clean_prefix}{group.qualified_name} {group.signature}",
+        embed = discord.Embed(title=f"{ctx.clean_prefix}{group.qualified_name} {group.signature}",
                               description=group.help)
-        embed.set_footer(text=f"Do {self.clean_prefix}help [command] for more help")
+        embed.set_footer(text=f"Do {ctx.clean_prefix}help [command] for more help")
 
         for command in group.commands:
-            embed.add_field(name=f"{self.clean_prefix}{command.name} {command.signature}",
+            embed.add_field(name=f"{ctx.clean_prefix}{command.name} {command.signature}",
                             value=(command.description or command.help),
                             inline=False)
 

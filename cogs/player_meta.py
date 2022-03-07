@@ -23,11 +23,11 @@ class player_meta(commands.Cog):
             return
         embedcolor = int(("0x"+data[5]),0)
         embed = discord.Embed(title=f"{str(user)}'s Profile",description=f"`ID: {user.id}`",color=embedcolor)
-        embed.set_thumbnail(url=user.avatar_url)
+        embed.set_thumbnail(url=user.avatar.url)
         embed.add_field(name="Balance",value=f"${data[3]}")
         embed.add_field(name="Total earnings",value=f"${data[4]}")
         embed.add_field(name="Lotteries Won", value=f"{data[6]}")
-        embed.set_footer(text=f"EconomyX v{self.bot.version}",icon_url=self.bot.user.avatar_url)
+        embed.set_footer(text=f"EconomyX v{self.bot.version}",icon_url=self.bot.user.avatar.url)
         await ctx.send(embed=embed)
     
     @commands.cooldown(1,60,BucketType.user)
