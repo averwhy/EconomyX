@@ -40,13 +40,11 @@ class devtools(commands.Cog):
 Guild:           {guild.name}
 ID:              {guild.id}
 Owner:           {str(guild.owner)}
-Region:          {guild.region}
 Members:         {guild.member_count}
 Boosters:        {len(guild.premium_subscribers)}
 Boost level:     {guild.premium_tier}
 Channels:        {len(guild.channels)}
 Roles:           {len(guild.roles)}
-Filesize limit:  {guild.filesize_limit}
 Desc:            {(guild.description or 'None')}
 Created:         {ts[0]} days, {ts[1]} hours, {ts[2]} minutes, {ts[3]} seconds ago
 Emoji limit:     {guild.emoji_limit}```
@@ -74,13 +72,11 @@ Emoji limit:     {guild.emoji_limit}```
 Guild:           {guild.name}
 ID:              {guild.id}
 Owner:           {str(guild.owner)}
-Region:          {guild.region}
 Members:         {guild.member_count}
 Boosters:        {len(guild.premium_subscribers)}
 Boost level:     {guild.premium_tier}
 Channels:        {len(guild.channels)}
 Roles:           {len(guild.roles)}
-Filesize limit:  {guild.filesize_limit}
 Desc:            {(guild.description or 'None')}
 Created:         {ts[0]} days, {ts[1]} hours, {ts[2]} minutes, {ts[3]} seconds ago
 Emoji limit:     {guild.emoji_limit}```
@@ -213,20 +209,11 @@ Emoji limit:     {guild.emoji_limit}```
 
     @dev.command()
     async def stop(self, ctx):
-        askmessage = await ctx.send("you sure?")
-        def check(m):
-            newcontent = m.content.lower()
-            return newcontent == 'yea' and m.channel == ctx.channel and m.author.id == OWNER_ID
-        try:
-            await self.bot.wait_for('message', timeout=5, check=check)
-        except asyncio.TimeoutError:
-            await askmessage.edit(content="timed out. haha why didnt you respond you idiot")
-        else:
-            await ctx.send("bye lol")
-            print(f"Bot is being stopped by {ctx.message.author} ({ctx.message.id})")
-            await self.bot.db.commit()
-            await self.bot.db.close()
-            await self.bot.close()
+        await ctx.send("bye lol")
+        print(f"Bot is being stopped by {ctx.message.author} ({ctx.message.id})")
+        await self.bot.db.commit()
+        await self.bot.db.close()
+        await self.bot.close()
         
     @dev.group(invoke_without_command=True)
     async def sql(self, ctx):
