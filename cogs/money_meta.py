@@ -38,7 +38,7 @@ class money_meta(commands.Cog):
         if user is None:
             data = await self.bot.get_player(ctx.author.id)
             if data is None:
-                await ctx.send("You dont have a profile. Try `e$register`")
+                await ctx.send(f"You dont have a profile. Try `{ctx.clean_prefix}register`")
                 return
             await ctx.send(f"{str(ctx.author)}'s balance: ${data[3]}")
         if user is not None:
@@ -51,7 +51,7 @@ class money_meta(commands.Cog):
     @commands.cooldown(1,10,BucketType.user)
     @commands.command()
     async def rob(self,ctx):
-        await ctx.send("You can't rob. It's aganist the law.")
+        await ctx.send("You can't rob. It's against the law.")
         
         
         

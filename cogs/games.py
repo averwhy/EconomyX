@@ -1,3 +1,4 @@
+from fileinput import filename
 import random
 import asyncio
 import discord
@@ -194,14 +195,15 @@ class games(commands.Cog):
                 else:
                     await ctx.send("Guess a **number**!")
                 
-    @commands.command(aliases=['bj'], enabled=False)
+    @commands.command(aliases=['bj'], enabled=True)
     async def blackjack(self, ctx, amount):
+        """Blackjack card game.
+        This has minor changes to work to EconomyX."""
         from .utils.botviews import Blackjack
-        values = {'Two':2, 'Three':3, 'Four':4, 'Five':5, 'Six':6, 'Seven':7, 'Eight':8, 'Nine':9, 'Ten':10, 'Jack':10,'Queen':10, 'King':10, 'Ace':11}
         
         player = await self.bot.get_player(ctx.author.id)
         if player is None:
-            await ctx.send("You dont have a profile! Get one with `e$register`.")
+            await ctx.send(f"You dont have a profile! Get one with `{self.bot.default_prefix}register`.")
             return
         if amount.lower() == "all":
             amount = player[3]
@@ -216,19 +218,18 @@ class games(commands.Cog):
             await ctx.send("Too small of a bet. (Minimum 5)")
             return
         
-        dealer_cards = random.choices(list(values.keys()), k=2)
-        player_cards = random.choices(list(values.keys()), k=2)
-        player_total = values[player_cards[0]] + values[player_cards[1]]
-        dealer_total = values[dealer_cards[0]] + values[dealer_cards[1]]
-        dealer_total_without_first_card = values[dealer_cards[1]]
-        bjview = Blackjack(ctx.author, player_cards, dealer_cards, amount)
+        bjview = Blackjack(ctx.author, amount) # This view does all the work :)
         embed = discord.Embed(title="Blackjack")
-        embed.add_field(name="Your cards", value=f"{player_cards[0]}, {player_cards[1]} ({player_total})")
-        embed.add_field(name="Dealer cards", value=f"?, {dealer_cards[1]} ({dealer_total_without_first_card})")
-        main_message = await ctx.send(embed=embed, view=bjview)
-        if player_total == 21:
-            return await bjview.win(main_message)
-        await bjview.wait()        
+        embed.add_field(name="Your cards", value=f"{bjview.player_cards[0]}, {bjview.player_cards[1]} ({bjview.player_total})")
+        embed.add_field(name="Dealer cards", value=f"?, {bjview.dealer_cards[1]} ({bjview.dealer_hidden_total})", inline=False)
+        file = discord.File("./cogs/assets/cards-clipart.png", filename="cards.png")
+        embed.set_thumbnail(url="attachment://cards.png")
+        await ctx.send(file=file, embed=embed, view=bjview)
+        if bjview.player_total == 21:
+            await bjview.blackjack(ctx.message)
+        if await bjview.wait():
+            await ctx.message.delete()
+            await ctx.send(f"{ctx.author.mention}, your blackjack game timed out.")
         
 
     @commands.command()
@@ -259,8 +260,8 @@ class games(commands.Cog):
         dices = dice1 + dice2
         rolls = 1
 
-        async def win(amount:int) -> None:
-            nonlocal ctx, nd1, nd2
+        async def win(amount:int, nd1, nd2) -> None:
+            nonlocal ctx
             await ctx.bot.update_balance(ctx.author, amount=amount)
             updated_embed = main_message.embeds[0]
             updated_embed.description = f"{updated_embed.description}\nRoll {rolls} | Dice 1: {self.dice_emojis[nd1]},  Dice 2: {self.dice_emojis[nd2]} ({nds})\n\n**You win!**"
@@ -269,8 +270,8 @@ class games(commands.Cog):
                 embed=updated_embed.set_footer(text=f"Amount won: {amount} | Rolls: {rolls}")
                 )
             return
-        async def loss(amount: int) -> None:
-            nonlocal ctx, nd1, nd2
+        async def loss(amount: int, nd1, nd2) -> None:
+            nonlocal ctx
             await ctx.bot.update_balance(ctx.author, amount=0-amount)
             updated_embed = main_message.embeds[0]
             updated_embed.description = f"{updated_embed.description}\nRoll {rolls} | Dice 1: {self.dice_emojis[nd1]},  Dice 2: {self.dice_emojis[nd2]} ({nds})\n\n**You lost.** \:("
@@ -289,10 +290,10 @@ class games(commands.Cog):
             description=f"Roll {rolls} | Dice 1: {self.dice_emojis[dice1]},  Dice 2: {self.dice_emojis[dice2]} ({dices})"
         ).set_footer(text=f"Amount bet: {amount} | Rolls: {rolls}"))
         if dices in [7, 11]:
-            await win(amount)
+            await win(amount, dice1, dice2)
 
         if dices in [2, 3, 12]:
-            await loss(amount)
+            await loss(amount, dice1, dice2)
         
         if dices in [4,5,6,8,9,10]:
             nd1, nd2 = await reroll() #nd = new dice
@@ -309,11 +310,11 @@ class games(commands.Cog):
                 nds = nd1 + nd2
             await asyncio.sleep(1)
             if nds == 7:
-                await loss(amount)
+                await loss(amount, nd1, nd2)
                 return
             
             #assume at this point, they rolled their original roll
-            await win(amount * 2)
+            await win((amount * 2), nd1, nd2)
         
 
 def setup(bot):

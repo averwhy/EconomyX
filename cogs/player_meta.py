@@ -19,7 +19,7 @@ class player_meta(commands.Cog):
             user = ctx.author
         data = await self.bot.get_player(user.id)
         if data is None:
-            await ctx.send("You dont have a profile. Try `e$register`")
+            await ctx.send(f"You dont have a profile. Try `{ctx.clean_prefix}register`")
             return
         embedcolor = int(("0x"+data[5]),0)
         embed = discord.Embed(title=f"{str(user)}'s Profile",description=f"`ID: {user.id}`",color=embedcolor)
@@ -55,7 +55,7 @@ class player_meta(commands.Cog):
         """Allows you to change the guild you belong to. This wont effect your money or anything, just the guild (server) you belong to."""
         data = await self.bot.get_player(ctx.author.id)
         if data is None:
-            await ctx.send("You dont have a profile. Try `e$register`")
+            await ctx.send(f"You dont have a profile. Try `{ctx.clean_prefix}register`")
         if newguild is None:
             askmessage = await ctx.send(f"`Are you sure you want to change your guild to this server?`")
             await askmessage.add_reaction(emoji="\U00002705") # white check mark
@@ -104,7 +104,7 @@ class player_meta(commands.Cog):
         """Allows you to change the color that shows on your profile, and other certain commands, like `help`."""
         data = await self.bot.get_player(ctx.author.id)
         if data is None:
-            await ctx.send("You dont have a profile. Try `e$register`")
+            await ctx.send(f"You dont have a profile. Try `{ctx.clean_prefix}register`")
             return
         try:
             hexcolor = hexcolor.upper()
@@ -113,11 +113,11 @@ class player_meta(commands.Cog):
         except:
             await ctx.send("There was an error with coverting that hex color. If you need help, try this link: https://htmlcolorcodes.com/color-picker/")
         if hexcolor is None:
-            await ctx.send("`Please provide a valid hex color value! (Without the #)`")
+            await ctx.send("Please provide a valid hex color value! (Without the #)")
             return
         else:
             askmessage = await ctx.send(embed=embed)
-            await askmessage.add_reaction(emoji="\U00002705") # white check mark
+            await askmessage.add_reaction("\U00002705") # white check mark
 
             def check(reaction, user):
                 return user == ctx.message.author and str(reaction.emoji) == "\U00002705"

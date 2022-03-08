@@ -7,6 +7,8 @@ import asyncio
 import time
 import typing
 from datetime import datetime
+
+from numpy import delete
 os.environ["JISHAKU_NO_DM_TRACEBACK"] = "True" 
 os.environ["JISHAKU_HIDE"] = "True"
 
@@ -53,7 +55,7 @@ class EcoBot(commands.Bot):
         try:
             await bot.db.execute("INSERT INTO e_users VALUES (?, ?, ?, 100, 0, 'FFFFFF', 0)",(member_object.id,member_object.name,member_object.guild.id,))
             await bot.db.commit()
-            return "Done! View your profile with `e$profile`"
+            return f"Done! View your profile with `{self.default_prefix}profile`"
         except Exception as e:
             return str(e)
         
@@ -96,14 +98,14 @@ class EcoBot(commands.Bot):
         *All* data involving you will be deleted.
         **Are you sure you would like to continue?** ***__There is no going back.__***
         """)
-        did_they = await self.prompt(ctx.author.id, msg, timeout=30)
+        did_they = await self.prompt(ctx.author.id, msg, timeout=30, delete_after=False)
         if did_they:
             await bot.db.execute("DELETE FROM e_users WHERE id = ?",(ctx.author.id,))
             await bot.db.execute("DELETE FROM e_invests WHERE userid = ?",(ctx.author.id,))
             await bot.db.execute("DELETE FROM e_stocks WHERE ownerid = ?",(ctx.author.id,))
-            await ctx.send("Ok, it's done. According to my database, you no longer exist.")
+            await ctx.send("Okay, it's done. According to my database, you no longer exist.\nThank you for using EconomyX. \U0001f5a4\U0001f90d")
         if not did_they:
-            await ctx.send("Canceled. None of your data was deleted.")
+            await ctx.send("Phew, canceled. None of your data was deleted.")
         if did_they is None: return
         await msg.delete()
         return
@@ -169,6 +171,9 @@ class EcoBot(commands.Bot):
             pass
         
         await bot.db.execute("UPDATE e_users SET bal = (bal + ?) WHERE id = ?",(amount, userobj.id))
+        if amount > 0:
+            #They gained money, update total gained
+            await bot.db.execute("UPDATE e_users SET totalearnings = (totalearnings + ?) WHERE id = ?",(amount,userobj.id,))
     
     async def transfer_money(self,member_paying: typing.Union[discord.User, discord.Member] ,member_getting_paid: typing.Union[discord.User, discord.Member],amount):
         """Transfers money from one player to another."""
@@ -204,9 +209,8 @@ class EcoBot(commands.Bot):
         days, hours = divmod(hours, 24)
         return [days, hours, minutes, seconds]
 
-default_prefix = 'y$'
 async def get_prefix(bot, message):
-    return bot.prefixes.get(message.author.id, default_prefix)
+    return bot.prefixes.get(message.author.id, bot.default_prefix)
               
 bot = EcoBot(command_prefix=get_prefix,description=desc,intents=discord.Intents(reactions=True, messages=True, guilds=True, members=True, message_content=True))
 
@@ -222,6 +226,7 @@ bot.total_command_completetions = 0
 bot.launch_time = datetime.utcnow()
 bot.maintenance = False
 bot.updates_channel = 798014940086403083
+bot.default_prefix = "y$"
 print(bot.launch_time)
 
 async def startup():
