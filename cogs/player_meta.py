@@ -2,6 +2,8 @@ import discord
 import asyncio
 from discord.ext import commands
 from discord.ext.commands.cooldowns import BucketType
+
+from cogs.utils.botviews import X
 OWNER_ID = 267410788996743168
 
 class player_meta(commands.Cog):
@@ -26,7 +28,7 @@ class player_meta(commands.Cog):
         embed.set_thumbnail(url=user.avatar.url)
         embed.add_field(name="Balance",value=f"${data[3]}")
         embed.add_field(name="Total earnings",value=f"${data[4]}")
-        embed.add_field(name="Lotteries Won", value=f"{data[6]}")
+        embed.add_field(name="Lotteries Won", value=f"{data[6]}",inline=False)
         embed.set_footer(text=f"EconomyX v{self.bot.version}",icon_url=self.bot.user.avatar.url)
         await ctx.send(embed=embed)
     
@@ -43,14 +45,22 @@ class player_meta(commands.Cog):
                 return
         msg2 = await ctx.send(f"Youre already in the database, {ctx.author.mention}\nIf you would like, i can purge your data from the database.\nSay `Yes` if you would like to start this process.")
         await self.bot.begin_user_deletion(ctx, msg2)
+
+    @commands.command()
+    async def tips(self, ctx):
+        from .utils.botviews import X
+        n = ctx.me.name
+        """Tips and tricks for money making in EconomyX"""
+        tip = f"""When you register with {n}, you start out with $100. Using that money, you have to make more money."""
+        await ctx.send(tip, view=X())
         
     @commands.group(aliases=["c","change","custom"],invoke_without_command=True)
     async def customize(self,ctx):
-        """The customize command."""
+        """Customize command."""
         await ctx.send("Usage: `e$customize <guild/color>`")
          
     @commands.cooldown(1,60,BucketType.user)
-    @customize.command(name="guild")
+    @customize.command(name="guild", enabled=False)
     async def gld(self, ctx, newguild: int = None):
         """Allows you to change the guild you belong to. This wont effect your money or anything, just the guild (server) you belong to."""
         data = await self.bot.get_player(ctx.author.id)

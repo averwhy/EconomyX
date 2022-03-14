@@ -5,6 +5,7 @@ import asyncio
 from discord.ext import commands
 from discord.ext import tasks
 from datetime import datetime
+from .utils.botviews import Confirm
 OWNER_ID = 267410788996743168
 
 class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
@@ -132,24 +133,21 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
         if result == []:
             return await ctx.send("Invalid URL provided.")
         
-        stockid = random.randint(0000,9999)
-        msg = await ctx.send(f"Stock name: {name}\nIcon URL: <{icon_url}>\nID: {stockid}\nStarting points: 10\n**Are you sure you want to create this stock for $1000?**")
-        await msg.add_reaction("\U00002705")
-        def check(reaction, user):
-            return user == ctx.author and str(reaction.emoji) == '✅'
-        try:
-            reaction, user = await self.bot.wait_for('reaction_add', timeout=30, check=check)
-        except asyncio.TimeoutError:
-            for i in msg.reactions:
-                try: await i.remove()
-                except: continue
-            await msg.delete()
-            await msg.edit(content="Timed out after 30 seconds.")
-        else:
+        stockid = random.randint(1000,9999)
+        view = Confirm()
+        msg = await ctx.send(f"Stock name: {name}\nIcon URL: <{icon_url}>\nID: {stockid}\nStarting points: 10\n**Are you sure you want to create this stock for $1000?**", view=view)
+        await view.wait()
+        if view.value is None:
+            return await msg.edit(f"Timed out after 3 minutes.")
+        elif view.value:
             stock_created_at = datetime.utcnow()
             await self.bot.db.execute("UPDATE e_users SET bal = (bal - 1000) WHERE id = ?",(ctx.author.id,))
             await self.bot.db.execute("INSERT INTO e_stocks VALUES (?, ?, 10.0, 10.0, ?, ?, ?)",(stockid, name, ctx.author.id, stock_created_at, icon_url,))
-            await ctx.reply('👍')
+            await msg.delete()
+            return await ctx.reply('👍')
+        else:
+            return await msg.delete()
+            
     
     @stock.command(description="Deletes an owned stock. Please consider renaming first, before deleting. You do not get refunded the money you paid to create the stock.")
     async def delete(self, ctx):
@@ -165,21 +163,17 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
         cur = await self.bot.db.execute("SELECT SUM(invested) FROM e_invests WHERE stockid = ?",(playerstock[0],))
         sum_invested = await cur.fetchone()
         tl = self.bot.utc_calc(playerstock[5])
-        msg = await ctx.send(f"**Are you sure you want to delete your stock?**\nStock name: {playerstock[1]}, Stock ID: {playerstock[0]}, Current points: {playerstock[2]}\nInvestors: {investor_count[0]}, Total amount invested: ${sum_invested[0]}\nCreated {tl[0]}d, {tl[1]}h, {tl[2]}m, {tl[3]}s ago\n__Investments will not be deleted. Investors will be refunded the amount they invested. You will not be refunded.__")
-        await msg.add_reaction("✅")
-        def check(reaction, user): 
-            return reaction.emoji == '✅' and user == ctx.author
-        try:
-            reaction, user = await self.bot.wait_for('reaction_add', timeout=30.0, check=check)
-        except asyncio.TimeoutError:
-            await msg.edit(content="Timeout. Your stock wasn't deleted.")
-        else:
+        view = Confirm()
+        msg = await ctx.send(f"**Are you sure you want to delete your stock?**\nStock name: {playerstock[1]}, Stock ID: {playerstock[0]}, Current points: {playerstock[2]}\nInvestors: {investor_count[0]}, Total amount invested: ${sum_invested[0]}\nCreated {tl[0]}d, {tl[1]}h, {tl[2]}m, {tl[3]}s ago\n__Investments will not be deleted. Investors will be refunded the amount they invested. You will not be refunded.__", view=view)
+        await view.wait()
+        if view.value is None:
+            return await msg.edit(f"Timed out after 3 minutes. Your stock wasn't deleted.")
+        elif view.value:
             await self.bot.db.execute("DELETE FROM e_stocks WHERE ownerid = ?",(ctx.author.id,))
-            try: await ctx.reply('👍')
-            except: await ctx.send('👍')
-        for i in msg.reactions:
-            try: await i.remove()
-            except Exception as e: print(e)
+            await msg.delete()
+            await ctx.reply('👍')
+        else:
+            await msg.delete()
         
     @stock.command(aliases=["e"], description="Edits a stock. Don't invoke with and arguments.")
     async def edit(self, ctx):
@@ -191,6 +185,7 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
         if playerstock is None:
             return await ctx.send("You don't have a stock. If you want make one, use `e$stock create <name>`")
         
+        # todo: made a view for this \/ \/
         rlist = ['1\N{variation selector-16}\N{combining enclosing keycap}', '2\N{variation selector-16}\N{combining enclosing keycap}', '❌']
         confirm = await ctx.send(f"What do you want to edit?\n{rlist[0]} : `Name`\n{rlist[1]} : `Icon`")
         for r in rlist:

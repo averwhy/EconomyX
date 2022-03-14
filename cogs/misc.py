@@ -25,11 +25,10 @@ class HelpCommand(commands.HelpCommand):
         ctx = self.context
         clr = await ctx.bot.get_player_color(ctx.author)
         if clr is None:
-            if ctx.guild: clr = ctx.guild.me.color
+            if ctx.guild is not None: clr = ctx.guild.me.color
             else: clr = discord.Color.dark_gray()
-        embed = discord.Embed(title="EconomyX Bot Help", color=clr)
+        embed = discord.Embed(title="EconomyX Help", color=clr)
         embed.set_footer(text=f"Do {ctx.clean_prefix}help [command] for more info")
-        categories = []
         for cog, cmds in mapping.items():
             filtered = await self.filter_commands(cmds, sort=True)
             if filtered:

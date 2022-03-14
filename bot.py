@@ -49,7 +49,7 @@ class EcoBot(commands.Bot):
                 await message.delete()
         finally:
             return confirm
-    
+
     async def add_player(self,member_object):
         """Adds a player to the database"""
         try:

@@ -1,6 +1,8 @@
 from fileinput import filename
 import random
 import asyncio
+from turtle import update
+from .utils.botviews import X
 import discord
 from discord.ext import commands
 from discord.ext.commands.cooldowns import BucketType
@@ -198,7 +200,15 @@ class games(commands.Cog):
     @commands.command(aliases=['bj'], enabled=True)
     async def blackjack(self, ctx, amount):
         """Blackjack card game.
-        This has minor changes to work to EconomyX."""
+        This has minor changes to work to EconomyX.
+        
+        The basic premise of the game is the player is dealt 2 cards. The dealer also has 2 cards, however, one is hidden. The goal of the game is to get a combined total of 21 or as close to it as possible. Then player can win when:
+        - They have a higher card value total than the dealer.
+        - They have a card value total of 21.
+        - The dealer 'busts' (obtains a card total higher than 21) when drawing another card.
+        
+        When you 'hit', you're drawing another card. This should be done when your card value total is around 14 or lower.
+        When you 'stand', you're keeping the cards you currently have. The dealer will then either reveal their hidden card (if *their*  card total is 17 or higher), or draw another (if their card total is 16 or lower.)"""
         from .utils.botviews import Blackjack
         
         player = await self.bot.get_player(ctx.author.id)
@@ -218,7 +228,7 @@ class games(commands.Cog):
             await ctx.send("Too small of a bet. (Minimum 5)")
             return
         
-        bjview = Blackjack(ctx.author, amount) # This view does all the work :)
+        bjview = Blackjack(self.bot, ctx.author, amount) # This view does all the work :)
         embed = discord.Embed(title="Blackjack")
         embed.add_field(name="Your cards", value=f"{bjview.player_cards[0]}, {bjview.player_cards[1]} ({bjview.player_total})")
         embed.add_field(name="Dealer cards", value=f"?, {bjview.dealer_cards[1]} ({bjview.dealer_hidden_total})", inline=False)
@@ -227,6 +237,8 @@ class games(commands.Cog):
         await ctx.send(file=file, embed=embed, view=bjview)
         if bjview.player_total == 21:
             await bjview.blackjack(ctx.message)
+        if bjview.player_total >= 22:
+            await bjview.lose()
         if await bjview.wait():
             await ctx.message.delete()
             await ctx.send(f"{ctx.author.mention}, your blackjack game timed out.")
@@ -260,61 +272,75 @@ class games(commands.Cog):
         dices = dice1 + dice2
         rolls = 1
 
-        async def win(amount:int, nd1, nd2) -> None:
+        async def win(amount:int, dice_1, dice_2, main_message) -> None:
             nonlocal ctx
             await ctx.bot.update_balance(ctx.author, amount=amount)
-            updated_embed = main_message.embeds[0]
-            updated_embed.description = f"{updated_embed.description}\nRoll {rolls} | Dice 1: {self.dice_emojis[nd1]},  Dice 2: {self.dice_emojis[nd2]} ({nds})\n\n**You win!**"
+            try: updated_embed = main_message.embeds[0]
+            except (ReferenceError, AttributeError):
+                updated_embed = discord.Embed(title="Craps", description="").set_footer(text=f"Amount bet: {amount} | Rolls: {rolls}")
+            updated_embed.description = f"{updated_embed.description}\nRoll {rolls} | Dice 1: {self.dice_emojis[dice_1]},  Dice 2: {self.dice_emojis[dice_2]} ({(dice_1 + dice_2)})\n\n**You win!**"
             updated_embed.color = discord.Color.green()
-            await main_message.edit(
-                embed=updated_embed.set_footer(text=f"Amount won: {amount} | Rolls: {rolls}")
-                )
+            updated_embed.set_footer(text=f"Amount won: ${amount} | Rolls: {rolls}")
+            try: 
+                await main_message.edit(
+                embed=updated_embed, view=X())
+            except (ReferenceError, AttributeError):
+                await ctx.send(embed=updated_embed, view=X())
             return
-        async def loss(amount: int, nd1, nd2) -> None:
+        async def loss(amount: int, dice_1, dice_2, main_message) -> None:
             nonlocal ctx
             await ctx.bot.update_balance(ctx.author, amount=0-amount)
-            updated_embed = main_message.embeds[0]
-            updated_embed.description = f"{updated_embed.description}\nRoll {rolls} | Dice 1: {self.dice_emojis[nd1]},  Dice 2: {self.dice_emojis[nd2]} ({nds})\n\n**You lost.** \:("
+            try: updated_embed = main_message.embeds[0]
+            except (ReferenceError, AttributeError):
+                updated_embed = discord.Embed(title="Craps", description="").set_footer(text=f"Amount bet: {amount} | Rolls: {rolls}")
+            updated_embed.description = f"{updated_embed.description}\nRoll {rolls} | Dice 1: {self.dice_emojis[dice_1]},  Dice 2: {self.dice_emojis[dice_2]} ({(dice_1 + dice_2)})\n\n**You lost.** \:("
             updated_embed.color = discord.Color.red()
-            await main_message.edit(
-                embed=updated_embed.set_footer(text=f"Amount lost: {amount} | Rolls: {rolls}")
-                )
+            updated_embed.set_footer(text=f"Amount lost: ${amount} | Rolls: {rolls}")
+            try: 
+                await main_message.edit(
+                embed=updated_embed, view=X())
+            except (ReferenceError, AttributeError):
+                await ctx.send(embed=updated_embed, view=X())
             return
         async def reroll() -> tuple:
             nonlocal rolls
             rolls += 1
             return (random.randrange(1,6), random.randrange(1,6))
 
+        if dices in [7, 11]:
+            return await win(amount, dice1, dice2, None)
+
+        if dices in [2, 3, 12]:
+            return await loss(amount, dice1, dice2, None)
+
         main_message = await ctx.send(embed=discord.Embed(
             title="Craps",
             description=f"Roll {rolls} | Dice 1: {self.dice_emojis[dice1]},  Dice 2: {self.dice_emojis[dice2]} ({dices})"
         ).set_footer(text=f"Amount bet: {amount} | Rolls: {rolls}"))
-        if dices in [7, 11]:
-            await win(amount, dice1, dice2)
-
-        if dices in [2, 3, 12]:
-            await loss(amount, dice1, dice2)
         
         if dices in [4,5,6,8,9,10]:
             nd1, nd2 = await reroll() #nd = new dice
             nds = nd1 + nd2 #nds = new dices
             while nds != 7:
-                if nds == dices: break # it has to go here for some reason
+                if nds == dices: break
                 updated_embed = main_message.embeds[0]
                 updated_embed.description = f"{updated_embed.description}\nRoll {rolls} | Dice 1: {self.dice_emojis[nd1]},  Dice 2: {self.dice_emojis[nd2]} ({nds})"
                 await asyncio.sleep(1)
-                await main_message.edit(
-                    embed=updated_embed.set_footer(text=f"Amount bet: {amount} | Rolls: {rolls}")
-                    )
+                try: 
+                    await main_message.edit(embed=updated_embed.set_footer(text=f"Amount bet: {amount} | Rolls: {rolls}"))
+                except discord.errors.HTTPException:
+                    # Too long
+                    updated_embed.description = f"...\nRoll {rolls} | Dice 1: {self.dice_emojis[nd1]},  Dice 2: {self.dice_emojis[nd2]} ({nds})"
+                    await main_message.edit(embed=updated_embed.set_footer(text=f"Amount bet: {amount} | Rolls: {rolls}"))
                 nd1, nd2 = await reroll()
                 nds = nd1 + nd2
             await asyncio.sleep(1)
             if nds == 7:
-                await loss(amount, nd1, nd2)
+                await loss(amount, nd1, nd2, main_message)
                 return
             
             #assume at this point, they rolled their original roll
-            await win((amount * 2), nd1, nd2)
+            await win((amount * 2), nd1, nd2, main_message)
         
 
 def setup(bot):
