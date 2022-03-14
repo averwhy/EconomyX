@@ -7,8 +7,6 @@ import asyncio
 import time
 import typing
 from datetime import datetime
-
-from numpy import delete
 os.environ["JISHAKU_NO_DM_TRACEBACK"] = "True" 
 os.environ["JISHAKU_HIDE"] = "True"
 
