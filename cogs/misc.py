@@ -263,11 +263,9 @@ class misc(commands.Cog):
             if ctx.guild: clr = ctx.guild.me.color
             else: clr = discord.Color.dark_gray()
         latest_message, = [message async for message in channel.history(limit=1)]
-        embed = discord.Embed(title="EconomyX News",
-                              description=f"{latest_message.content}\n\n[Jump to message]({latest_message.jump_url})  |  [Can't see message? Join support server](https://discord.gg/epQZEp933x)",
-                              color=clr)
+        embed = discord.Embed(title="EconomyX News", description=f"{latest_message.content}\n\n[Jump to message]({latest_message.jump_url})  |  [Can't see message? Join support server](https://discord.gg/epQZEp933x)", color=clr)
         isdev = "(Developer) " if latest_message.author.id == OWNER_ID else ""
-        embed.set_footer(text=f"Set by {isdev}{str(latest_message.author)}, {humanize.precisedelta(latest_message.created_at.replace(tzinfo=timezone.utc))} ago", icon_url=latest_message.author.avatar_url)
+        embed.set_footer(text=f"Set by {isdev}{str(latest_message.author)}, {humanize.precisedelta(latest_message.created_at.replace(tzinfo=None))} ago", icon_url=latest_message.author.avatar.url)
         await ctx.send(embed=embed)
 
         
