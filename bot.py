@@ -224,11 +224,11 @@ bot.total_command_completetions = 0
 bot.launch_time = datetime.utcnow()
 bot.maintenance = False
 bot.updates_channel = 798014940086403083
-bot.default_prefix = "y$"
+bot.default_prefix = "e$"
 print(bot.launch_time)
 
 async def startup():
-    bot.db = await aiosqlite.connect('economyy.db')
+    bot.db = await aiosqlite.connect('economyx.db')
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_users (id int, name text, guildid int, bal int, totalearnings int, profilecolor text, lotterieswon int)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_stocks (stockid int, name text, points double, previouspoints double, ownerid int, created text, icon_url blob)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_invests (stockid int, userid int, invested int, stockname text, invested_at double, invested_date blob)")

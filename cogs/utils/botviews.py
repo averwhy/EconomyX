@@ -4,7 +4,6 @@ from http.client import INSUFFICIENT_STORAGE
 from typing import Optional
 import discord, random, asyncio
 from discord.ext import commands
-from numpy import isin
 
 # class Hit(discord.ui.Button):
 #     def __init__(self):
