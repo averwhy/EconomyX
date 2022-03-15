@@ -58,7 +58,6 @@ class player:
         Requires the `to` arg to be a player object."""
         await self.bot.db.execute("UPDATE e_users SET bal = (bal - ?) WHERE id = ?",(amount, self.id))
         await self.bot.db.execute("UPDATE e_users SET bal = (bal + ?) WHERE id = ?",(amount, to.id))
-
         await self.bot.db.commit()
 
     @staticmethod
