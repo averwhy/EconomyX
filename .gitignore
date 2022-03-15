@@ -3,3 +3,4 @@ TOKEN.txt
 nohup.out
 *.db-journal
 *.db
+WEBHOOK.txt

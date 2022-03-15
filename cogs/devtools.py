@@ -3,8 +3,11 @@ import sys
 from discord.ext import commands, tasks
 import asyncio
 import aiosqlite
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, tzinfo
 import traceback
+import humanize
+from discord import Webhook
+import aiohttp
 OWNER_ID = 267410788996743168
 
 class devtools(commands.Cog):
@@ -13,6 +16,7 @@ class devtools(commands.Cog):
     """
     def __init__(self,bot):
         self.bot = bot
+        self.log_hook = open("WEBHOOK.txt",'r').readline()
     
     async def cog_check(self,ctx):
         return ctx.author.id == OWNER_ID
@@ -23,69 +27,64 @@ class devtools(commands.Cog):
     
     @commands.Cog.listener()
     async def on_guild_join(self, guild):
-        try:
-            logchannel = await self.bot.fetch_channel(798016167163723776)
-            guildstatvc = await self.bot.fetch_channel(798014995496960000)
-            playerstatvc = await self.bot.fetch_channel(809977048868585513)
-            await guildstatvc.edit(name=f"Guilds: {len(self.bot.guilds)}")
-            userstatvc = await self.bot.fetch_channel(798018451330433044)
-            await userstatvc.edit(name=f"Users: {len(self.bot.users)}")
-            c = await self.bot.db.execute("SELECT COUNT(*) FROM e_users")
-            total_db_users = await c.fetchone()
-            await playerstatvc.edit(name=f"Players (in DB): {total_db_users[0]}")
-            
-            
-            ts = self.bot.utc_calc(str(guild.created_at))
-            msg = f"""New guild pog: ```prolog
+        guildstatvc = await self.bot.fetch_channel(798014995496960000)
+        playerstatvc = await self.bot.fetch_channel(809977048868585513)
+        await guildstatvc.edit(name=f"Guilds: {len(self.bot.guilds)}")
+        userstatvc = await self.bot.fetch_channel(798018451330433044)
+        await userstatvc.edit(name=f"Users: {len(self.bot.users)}")
+        c = await self.bot.db.execute("SELECT COUNT(*) FROM e_users")
+        total_db_users = await c.fetchone()
+        await playerstatvc.edit(name=f"Players (in DB): {total_db_users[0]}")
+        
+        ts = humanize.precisedelta(guild.created_at.replace(tzinfo=None))
+        msg = f"""+1 guild ```prolog
 Guild:           {guild.name}
 ID:              {guild.id}
-Owner:           {str(guild.owner)}
+Owner:           {str(guild.owner)} ({guild.owner_id})
 Members:         {guild.member_count}
 Boosters:        {len(guild.premium_subscribers)}
 Boost level:     {guild.premium_tier}
 Channels:        {len(guild.channels)}
 Roles:           {len(guild.roles)}
 Desc:            {(guild.description or 'None')}
-Created:         {ts[0]} days, {ts[1]} hours, {ts[2]} minutes, {ts[3]} seconds ago
+Created:         {ts} ago
 Emoji limit:     {guild.emoji_limit}```
-            """
-            await logchannel.send(msg)
-        except Exception as e:
-            dev = await self.bot.fetch_user(267410788996743168)
-            await dev.send(e)
+        """
+        async with aiohttp.ClientSession() as session:
+            webhook = Webhook.from_url(self.log_hook, session=session)
+            await webhook.send(msg)
+        print(f"Joined new guild '{guild.name}' at {humanize.naturaldate(datetime.utcnow())}. New guild count: {len(self.bot.guilds)}")
         
     @commands.Cog.listener()
-    async def on_guild_leave(self, guild):
-        try:
-            logchannel = await self.bot.fetch_channel(798016167163723776)
-            guildstatvc = await self.bot.fetch_channel(798014995496960000)
-            playerstatvc = await self.bot.fetch_channel(809977048868585513)
-            await guildstatvc.edit(name=f"Guilds: {len(self.bot.guilds)}")
-            userstatvc = await self.bot.fetch_channel(798018451330433044)
-            await userstatvc.edit(name=f"Users: {len(self.bot.users)}")
-            c = await self.bot.db.execute("SELECT COUNT(*) FROM e_users")
-            total_db_users = await c.fetchone()
-            await playerstatvc.edit(name=f"Players (in DB): {total_db_users[0]}")
-            
-            ts = self.bot.utc_calc(str(guild.created_at))
-            msg = f"""Fuck, we lost a guild: ```prolog
+    async def on_guild_remove(self, guild):
+        guildstatvc = await self.bot.fetch_channel(798014995496960000)
+        playerstatvc = await self.bot.fetch_channel(809977048868585513)
+        await guildstatvc.edit(name=f"Guilds: {len(self.bot.guilds)}")
+        userstatvc = await self.bot.fetch_channel(798018451330433044)
+        await userstatvc.edit(name=f"Users: {len(self.bot.users)}")
+        c = await self.bot.db.execute("SELECT COUNT(*) FROM e_users")
+        total_db_users = await c.fetchone()
+        await playerstatvc.edit(name=f"Players (in DB): {total_db_users[0]}")
+        
+        ts = humanize.precisedelta(guild.created_at.replace(tzinfo=None))
+        msg = f"""-1 guild ```prolog
 Guild:           {guild.name}
 ID:              {guild.id}
-Owner:           {str(guild.owner)}
+Owner:           {str(guild.owner)} ({guild.owner_id})
 Members:         {guild.member_count}
 Boosters:        {len(guild.premium_subscribers)}
 Boost level:     {guild.premium_tier}
 Channels:        {len(guild.channels)}
 Roles:           {len(guild.roles)}
 Desc:            {(guild.description or 'None')}
-Created:         {ts[0]} days, {ts[1]} hours, {ts[2]} minutes, {ts[3]} seconds ago
+Created:         {ts} ago
 Emoji limit:     {guild.emoji_limit}```
-            """
-            await logchannel.send(msg)
-        except Exception as e:
-            dev = await self.bot.fetch_user(267410788996743168)
-            await dev.send(e)
-        
+        """
+        async with aiohttp.ClientSession() as session:
+            webhook = Webhook.from_url(self.log_hook, session=session)
+            await webhook.send(msg)
+        print(f"Left a guild '{guild.name}' at {humanize.naturaldate(datetime.utcnow())}. New guild count: {len(self.bot.guilds)}")
+
     @tasks.loop(minutes=10)
     async def database_backup_task(self):
         try:
