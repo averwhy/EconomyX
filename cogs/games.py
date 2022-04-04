@@ -128,9 +128,9 @@ class games(commands.Cog):
         choices = ["paper", "scissor", "rock"]
         if not choice.strip().lower() in choices:
             return await ctx.send("It looks like you didn't specify `rock`, `paper`, or `scissor` (singular, no 's).")
-        outcome_list = ["draw", "lose", "win"]
+        outcome_list = ["tied with me", "lose", "win"]
         result = (choices.index(choice)+rand)%3
-        summary += "I drew {}, you {}\n".format(choices[result], outcome_list[rand])
+        summary += "I drew {}, you {}.\n".format(choices[result], outcome_list[rand])
         if outcome_list[rand] == "draw":
             summary += "You lost no money."
         elif outcome_list[rand] == "lose":
