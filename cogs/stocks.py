@@ -22,8 +22,9 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
         c = await self.bot.db.execute("SELECT * FROM e_stocks")
         all_stocks = await c.fetchall()
         for s in all_stocks:
+            previous_amount = s[2]
             bruh = random.choice([True, False]) # true = add, false = subtract
-            amount = random.uniform(0.1,1)
+            amount = random.uniform(0.1,1.1)
             amount = round(amount,2)
             if bruh:
                 await self.bot.db.execute("UPDATE e_stocks SET points = (points + ?) WHERE stockid = ?",(amount, s[0]))
@@ -33,6 +34,8 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
                     amount = 0 # we dont want it to go negative
                 else:
                     await self.bot.db.execute("UPDATE e_stocks SET points = (points - ?) WHERE stockid = ?",(amount, s[0]))
+            #then update previous amount for e$stock view 
+            await self.bot.db.execute("UPDATE e_stocks SET previouspoints = ? WHERE stockid = ?", (previous_amount))
         print(f"{len(all_stocks)} stocks updated")
     
     @commands.command(aliases=["port","pf"])
