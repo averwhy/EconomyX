@@ -131,7 +131,7 @@ class games(commands.Cog):
         outcome_list = ["tied with me", "lose", "win"]
         result = (choices.index(choice)+rand)%3
         summary += "I drew {}, you {}.\n".format(choices[result], outcome_list[rand])
-        if outcome_list[rand] == "draw":
+        if outcome_list[rand] == "tied with me":
             summary += "You lost no money."
         elif outcome_list[rand] == "lose":
             summary += f"You lost ${amount}."
