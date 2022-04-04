@@ -175,7 +175,7 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
         else:
             await msg.delete()
         
-    @stock.command(aliases=["e"], description="Edits a stock. Don't invoke with and arguments.")
+    @stock.command(aliases=["e"], description="Edits a stock. Don't invoke with arguments.")
     async def edit(self, ctx):
         player = await self.bot.get_player(ctx.author.id)
         if player is None:
@@ -185,7 +185,7 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
         if playerstock is None:
             return await ctx.send("You don't have a stock. If you want make one, use `e$stock create <name>`")
         
-        # todo: made a view for this \/ \/
+        # todo: make a view for this \/ \/
         rlist = ['1\N{variation selector-16}\N{combining enclosing keycap}', '2\N{variation selector-16}\N{combining enclosing keycap}', '❌']
         confirm = await ctx.send(f"What do you want to edit?\n{rlist[0]} : `Name`\n{rlist[1]} : `Icon`")
         for r in rlist:

@@ -103,7 +103,7 @@ class games(commands.Cog):
         
     
     @commands.group(aliases=["rps"],invoke_without_command=True, description="Rock paper scissors.")
-    async def rockpaperscissors(self, ctx, amount, choice):
+    async def rockpaperscissors(self, ctx, amount: int, choice):
         """Rock paper scissor game. `amount` is money you want to bet, and choice must be `rock`, `paper`, or `scissor` (singular, no 's)"""
         summary = ""
         player = await self.bot.get_player(ctx.author.id)
