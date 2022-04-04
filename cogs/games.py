@@ -103,7 +103,7 @@ class games(commands.Cog):
         
     
     @commands.group(aliases=["rps"],invoke_without_command=True, description="Rock paper scissors.")
-    async def rockpaperscissors(self, ctx, amount: int, choice):
+    async def rockpaperscissors(self, ctx, amount, choice):
         """Rock paper scissor game. `amount` is money you want to bet, and choice must be `rock`, `paper`, or `scissor` (singular, no 's)"""
         summary = ""
         player = await self.bot.get_player(ctx.author.id)
@@ -114,6 +114,7 @@ class games(commands.Cog):
             return await ctx.send("Invalid choice.")
         if amount.lower() == "all":
             amount = player[3]
+        amount = int(amount)
         if amount != amount:
             await ctx.send("Thats not a valid amount. Nice try, though")
             return
@@ -125,7 +126,7 @@ class games(commands.Cog):
             return
         rand = random.randint(0,2)
         choices = ["paper", "scissor", "rock"]
-        if not choice.strip() in choices:
+        if not choice.strip().lower() in choices:
             return await ctx.send("It looks like you didn't specify `rock`, `paper`, or `scissor` (singular, no 's).")
         outcome_list = ["draw", "lose", "win"]
         result = (choices.index(choice)+rand)%3
