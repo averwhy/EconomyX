@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from discord.ext import commands
 from discord.ext import tasks
 
-class Lottery(commands.Cog):
+class lottery(commands.Cog):
     """The lottery. Users buy tickets and every 12 hours it is drawn. Use the `lottery` command to see when the next drawing is."""
     def __init__(self, bot):
         self.bot = bot
@@ -107,4 +107,4 @@ class Lottery(commands.Cog):
         
         
 def setup(bot):
-    bot.add_cog(Lottery(bot))
+    bot.add_cog(lottery(bot))

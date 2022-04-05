@@ -38,7 +38,7 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
                 else:
                     await self.bot.db.execute("UPDATE e_stocks SET points = (points - ?) WHERE stockid = ?",(amount, s[0]))
             #then update previous amount for e$stock view 
-            await self.bot.db.execute("UPDATE e_stocks SET previouspoints = ? WHERE stockid = ?", (previous_amount))
+            await self.bot.db.execute("UPDATE e_stocks SET previouspoints = ? WHERE stockid = ?", (previous_amount, s[0]))
         print(f"{len(all_stocks)} stocks updated")
     
     @commands.command(aliases=["port","pf"])
