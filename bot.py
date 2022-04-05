@@ -9,6 +9,7 @@ import typing
 from datetime import datetime
 os.environ["JISHAKU_NO_DM_TRACEBACK"] = "True" 
 os.environ["JISHAKU_HIDE"] = "True"
+os.environ["JISHAKU_NO_UNDERSCORE"] = "True"
 
 desc = "EconomyX is a money system for Discord. It's straightfoward with only economy related commands, to keep it simple. I was made by averwhy#3899."
 
@@ -265,7 +266,6 @@ class MaintenenceActive(commands.CheckFailure):
 async def maintenance_mode(ctx):
     if bot.maintenance and ctx.author.id != 267410788996743168:
         raise MaintenenceActive()
-        return False
     return True
     
 @bot.event
@@ -276,7 +276,7 @@ async def on_command_error(ctx, error): # this is an event that runs when there 
     if isinstance(error, discord.ext.commands.errors.CommandNotFound):      
         return
     elif isinstance(error, discord.ext.commands.errors.CommandOnCooldown): 
-        s = round(error.retry_after,2)
+        s = round(error.retry_after,2) # todo: convert to humanize instead of this dumb math
         if s > 3600: # over 1 hour
             s /= 3600
             s = round(s,1)
@@ -287,13 +287,13 @@ async def on_command_error(ctx, error): # this is an event that runs when there 
             s = f"{s} minute(s)"
         else: #below 1 min
             s = f"{s} seconds"
-        msgtodelete = await ctx.send(f"`ERROR: Youre on cooldown for {s}!`")
-        await asyncio.sleep(15)
-        await msgtodelete.delete()
+        await ctx.send(f"`ERROR: Youre on cooldown for {s}!`", delete_after=15)
         return
     elif isinstance(error, commands.CheckFailure):
         # these should be handled in cogs
         return
+    elif isinstance(error, ValueError):
+        return await ctx.send("It looks like that's an invalid amount.")
     else:
         bot.total_command_errors += 1
         await ctx.send(f"```diff\n- {error}\n```")
@@ -302,12 +302,15 @@ async def on_command_error(ctx, error): # this is an event that runs when there 
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
 for cog in bot.initial_extensions:
+    success, failed = 0
     try:
         bot.load_extension(f"{cog}")
-        print(f"loaded {cog}")
+        success += 1
     except Exception as e:
         print(f"Failed to load {cog}, error:\n", file=sys.stderr)
+        failed += 1
         traceback.print_exc()
+    print(f"loaded {success} cogs successfully, with {failed} failures.")
         
 asyncio.set_event_loop(asyncio.SelectorEventLoop())
 bot.run(TOKEN)
