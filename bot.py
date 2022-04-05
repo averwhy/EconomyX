@@ -302,7 +302,7 @@ async def on_command_error(ctx, error): # this is an event that runs when there 
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
 for cog in bot.initial_extensions:
-    success, failed = 0
+    success = failed = 0
     try:
         bot.load_extension(f"{cog}")
         success += 1
