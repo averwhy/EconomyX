@@ -8,6 +8,9 @@ class Lottery(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.lottery_task.start()
+
+    def cog_unload(self) -> None:
+        self.lottery_task.cancel()
     
     async def reset_lottery_time(self):
         newdrawingtime = datetime.utcnow() + timedelta(hours=12)

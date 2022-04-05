@@ -1,11 +1,12 @@
 from __future__ import annotations
+import asyncio
 from bot import EcoBot
 import errors
 
 class player:
     def __init__(self, bot: EcoBot) -> None:
         self.bot = bot
-
+        asyncio.run(self.__ainit__)
     
     async def __ainit__(self, bot):
         cur = await bot.db.execute("SELECT * FROM e_users WHERE id = ?",(id,))

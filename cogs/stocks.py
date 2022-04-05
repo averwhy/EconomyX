@@ -15,6 +15,9 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
     def __init__(self, bot):
         self.bot = bot
         self.main_stock_loop.start()
+
+    def cog_unload(self) -> None:
+        self.main_stock_loop.cancel()
         
     @tasks.loop(seconds=450)
     async def main_stock_loop(self):
