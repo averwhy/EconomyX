@@ -58,7 +58,7 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
         else:
             embed.add_field(name="Owned Stock",value=f"{playerstock[1]} [`{playerstock[0]}`]")
             tl = self.bot.utc_calc(playerstock[5])
-            embed.add_field(name="Stock Created",value=f"{tl[0]}d, {tl[1]}h, {tl[2]}m, {tl[3]}s ago")
+            embed.add_field(name="Stock Created",value=f"{tl} ago")
             embed.add_field(name="Stock Points",value=f"{round(playerstock[2],1)}")
         c = await self.bot.db.execute("SELECT * FROM e_invests WHERE userid = ?",(user.id,))
         playerinvests = await c.fetchall()
@@ -68,7 +68,7 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
             t = ""
             for i in playerinvests:
                 tl = self.bot.utc_calc(i[5])
-                t = t + (f"{i[3]} [`{i[0]}`]: invested ${i[2]} at {round(i[4],1)} points {tl[0]}d, {tl[1]}h, {tl[2]}m, {tl[3]}s ago\n")
+                t = t + (f"{i[3]} [`{i[0]}`]: invested ${i[2]} @ {round(i[4],1)} points | {tl} ago\n")
             if t == "":
                 t = "None!"
             embed.add_field(name="Invests",value=t,inline=False)
@@ -88,7 +88,7 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
         total_invested = await cur.fetchone()
         cur = await self.bot.db.execute("SELECT SUM(points) FROM e_stocks")
         total_points = await cur.fetchone()
-        embed = discord.Embed(title="All Stocks",description=f"Total amount invested: ${total_invested[0]}, Total stock points: {total_points[0]}")
+        embed = discord.Embed(title="All Stocks",description=f"Total amount invested: ${total_invested[0]}, Total stock points: {round(total_points[0], 2)}")
         counter = 0
         for i in allstocks:
             if counter > 10:
@@ -96,7 +96,7 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
             cur = await self.bot.db.execute("SELECT COUNT(*) FROM e_invests WHERE stockid = ?",(i[0],))
             investor_count = await cur.fetchone()
             tl = self.bot.utc_calc(i[5])
-            embed.add_field(name=i[1],value=f"ID: {i[0]}, Points: {round(i[2],1)}, {investor_count[0]} Investors, Created {tl[0]}d, {tl[1]}h, {tl[2]}m, {tl[3]}s ago")
+            embed.add_field(name=i[1],value=f"ID: {i[0]}, Points: {round(i[2],1)}, {investor_count[0]} Investors, Created {tl} ago")
             counter += 1
         await ctx.send(embed=embed)
     
@@ -111,7 +111,7 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
             return await ctx.send("I couldn't find that stock, check the name or ID again.")
         embed = discord.Embed(title=f"{stock[1]}", description=f"ID: {stock[0]}")
         tl = self.bot.utc_calc(stock[5])
-        embed.add_field(name="Stock Created",value=f"{tl[0]}d, {tl[1]}h, {tl[2]}m, {tl[3]}s ago")
+        embed.add_field(name="Stock Created",value=f"{tl} ago")
         upordown = "UP" if stock[3] < stock[2] else "DOWN"
         embed.add_field(name="Stock Points",value=f"`{round(stock[2],1)}`, {upordown} from `{round(stock[3],1)}` points")
         if str(stock[6]).startswith("http"):
@@ -170,7 +170,7 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
         sum_invested = await cur.fetchone()
         tl = self.bot.utc_calc(playerstock[5])
         view = Confirm()
-        msg = await ctx.send(f"**Are you sure you want to delete your stock?**\nStock name: {playerstock[1]}, Stock ID: {playerstock[0]}, Current points: {playerstock[2]}\nInvestors: {investor_count[0]}, Total amount invested: ${sum_invested[0]}\nCreated {tl[0]}d, {tl[1]}h, {tl[2]}m, {tl[3]}s ago\n__Investments will not be deleted. Investors will be refunded the amount they invested. You will not be refunded.__", view=view)
+        msg = await ctx.send(f"**Are you sure you want to delete your stock?**\nStock name: {playerstock[1]}, Stock ID: {playerstock[0]}, Current points: {playerstock[2]}\nInvestors: {investor_count[0]}, Total amount invested: ${sum_invested[0]}\nCreated {tl} ago\n__Investments will not be deleted. Investors will be refunded the amount they invested. You will not be refunded.__", view=view)
         await view.wait()
         if view.value is None:
             return await msg.edit(f"Timed out after 3 minutes. Your stock wasn't deleted.")
@@ -240,7 +240,6 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
     #         ["How do stocks work?",
     #         "EconomyX stocks are fairly simple. Users can create stocks, and they can invest in stocks. Investing allows you to put a certain amount of money into a stock, at a certain point. Whenever you sell your investment, the money you earn back is calculated and paid back to you. (To see how it is calculated, use `e$help invest sell`"]
     #     ]
-        
             
     @commands.group(invoke_without_command=True)
     async def invest(self, ctx, name_or_id, amount):
@@ -284,7 +283,7 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
         rn = datetime.utcnow()
         await self.bot.db.execute("INSERT INTO e_invests VALUES (?, ?, ?, ?, ?, ?)",(stock[0], ctx.author.id, amount, stock[1], stock[2],rn,))
         await self.bot.db.execute("UPDATE e_users SET bal = (bal - ?) WHERE id = ?",(amount,ctx.author.id,))
-        await ctx.send(f"Invested ${amount} in **{stock[1]}** at {stock[2]} points!")
+        await ctx.send(f"Invested ${amount} in **{stock[1]}** at {round(stock[2], 2)} points!")
         
     @invest.command(invoke_without_command=True, description="Sells an investment.\nThe money you earn back is calculated like this: `money_to_pay = (current_stock_points - points_at_investment) * amount_invested`")
     async def sell(self, ctx, name_or_id):

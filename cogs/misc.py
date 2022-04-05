@@ -163,7 +163,6 @@ class misc(commands.Cog):
         """
         embed = discord.Embed(title="EconomyX Info",description=desc,color=color)
         embed.set_footer(text=f"Made with Python {platform.python_version()}, discord.py {discord.__version__}, and aiosqlite {aiosqlite.__version__}",icon_url="https://images-ext-1.discordapp.net/external/0KeQjRAKFJfVMXhBKPc4RBRNxlQSiieQtbSxuPuyfJg/http/i.imgur.com/5BFecvA.png")
-        embed.set_thumbnail(url="https://media.discordapp.net/attachments/460568954968997890/761037965987807232/dpycogs.png")
         await ctx.send(content="https://discord.gg/epQZEp933x", embed=embed)
     
     @commands.command()

@@ -52,7 +52,7 @@ class lottery(commands.Cog):
             user = await self.bot.fetch_user(winningplayer[0])
             ts = self.bot.utc_calc(winningplayer[2])
             try:
-                await user.send(f"Hey {user.mention}, **You won the lottery in EconomyX!**\nYou bought a ticket {ts[1]}h, {ts[2]}m, {ts[3]}s ago.\nYou won ${winningamount}")
+                await user.send(f"Hey {user.mention}, **You won the lottery in EconomyX!**\nYou bought a ticket {ts} ago.\nYou won ${winningamount}")
             except:
                 #we cant dm them. Sad!
                 # i guess we'll just pay them and up their stats. oh well

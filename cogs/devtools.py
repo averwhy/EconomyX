@@ -123,11 +123,11 @@ Emoji limit:     {guild.emoji_limit}```
             user = await self.bot.fetch_user(winningplayer[0])
             ts = self.bot.utc_calc(winningplayer[2])
             try:
-                await user.send(f"Hey {user.mention}, **You won the lottery in EconomyX!**\nYou bought a ticket {ts[1]}h, {ts[2]}m, {ts[3]}s ago.\nYou won ${winningamount}")
-                await ctx.send(f"{user.mention} ({user.id}) won the lottery, with ${winningamount}. They bought a ticket {ts[1]}h, {ts[2]}m, {ts[3]}s ago.")
-            except:
+                await user.send(f"Hey {user.mention}, **You won the lottery in EconomyX!**\nYou bought a ticket {ts} ago.\nYou won ${winningamount}")
+                await ctx.send(f"{user.mention} ({user.id}) won the lottery, with ${winningamount}. They bought a ticket {ts} ago.")
+            except discord.Forbidden:
                 #we cant dm them. Sad!
-                # i guess we'll just pay them and up their stats. oh well
+                #i guess we'll just pay them and up their stats. oh well
                 pass
             await self.bot.db.execute("UPDATE e_users SET bal = (bal + ?) WHERE id = ?",(winningamount,winningplayer[0],))
             await self.bot.db.execute("UPDATE e_users SET lotterieswon = (lotterieswon + 1) WHERE id = ?",(winningplayer[0],))

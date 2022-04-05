@@ -51,7 +51,24 @@ class player_meta(commands.Cog):
         from .utils.botviews import X
         n = ctx.me.name
         """Tips and tricks for money making in EconomyX"""
-        tip = f"""When you register with {n}, you start out with $100. Using that money, you have to make more money."""
+        tip = f"""*Disclaimer: Money with EconomyX is not real currency and cannot be exchanged for real currency. Please read the ToS for more info (found in the support server).*
+        When you register with {n}, you start out with $100. Using that money, you have to make more money.
+        There's a few ways you can do this.
+        1. Play money-making games
+            There's many games you can play that you can earn money with. The simplest is `e$bet`, which has a 50% chance win rate.
+            If you're looking for higher risk but higher reward games, try `e$roulette`. If you select the 'green' option, theres a ~2.97 percent chance you will win **35x** your bet!
+        
+        2. Invest in stocks
+            Stocks can be a great way of making money. Say for example you invest $1,000 into a stock at 10 points. Then, you sell your investment when the stock is at 20 points.
+            On the backend, the math would look like this: `(20 - 10) * 1000`. which means you would be paid $10,000!
+            Remember, stock points randomly flucuate because they are ***not*** based off of real stocks.
+            
+        3. Win the lottery
+            This method is not quite the best. You can buy a lottery ticket for $100, and that money is pooled into the lottery. If you win, you will earn everybodys winnings.
+            If the lottery has a lot of contestants, the probability of winning is low. So don't bank all your money on this!
+            
+        If you have any questions or feedback, join the EconomyX support server (`e$support`)"""
+
         await ctx.send(tip, view=X())
         
     @commands.group(aliases=["c","change","custom"],invoke_without_command=True)

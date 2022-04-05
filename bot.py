@@ -7,6 +7,8 @@ import asyncio
 import time
 import typing
 from datetime import datetime
+
+import humanize
 os.environ["JISHAKU_NO_DM_TRACEBACK"] = "True" 
 os.environ["JISHAKU_HIDE"] = "True"
 os.environ["JISHAKU_NO_UNDERSCORE"] = "True"
@@ -194,12 +196,9 @@ class EcoBot(commands.Bot):
             return int(("0x"+player[5]),0)
         
     def utc_calc(self, timestamp: str):
-        """Returns a pretty format of the amount of time ago from a given UTC Timestamp."""
-        delta_uptime = datetime.utcnow() - datetime.strptime(timestamp,"%Y-%m-%d %H:%M:%S.%f")
-        hours, remainder = divmod(int(delta_uptime.total_seconds()), 3600)
-        minutes, seconds = divmod(remainder, 60)
-        days, hours = divmod(hours, 24)
-        return [days, hours, minutes, seconds]
+        """Returns a precise format of the amount of time ago from a given UTC Timestamp."""
+        formatted_ts = datetime.strptime(timestamp,"%Y-%m-%d %H:%M:%S.%f")
+        return humanize.precisedelta(formatted_ts)
     
     def lottery_countdown_calc(self, timestamp:str): # thanks pikaninja
         delta_uptime =  datetime.strptime(timestamp,"%Y-%m-%d %H:%M:%S.%f") - datetime.utcnow()
