@@ -96,7 +96,7 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
             cur = await self.bot.db.execute("SELECT COUNT(*) FROM e_invests WHERE stockid = ?",(i[0],))
             investor_count = await cur.fetchone()
             tl = self.bot.utc_calc(i[5], type="R")
-            embed.add_field(name=i[1],value=f"ID: {i[0]}, Points: {round(i[2],1)}, {investor_count[0]} Investors, Created {tl} ago")
+            embed.add_field(name=i[1],value=f"ID: {i[0]}, Points: {round(i[2],1)}, {investor_count[0]} Investors, Created {tl}")
             counter += 1
         await ctx.send(embed=embed)
     
