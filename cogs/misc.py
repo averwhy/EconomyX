@@ -118,9 +118,9 @@ class misc(commands.Cog):
         c = await self.bot.db.execute("SELECT * FROM e_prefixes WHERE userid = ?",(ctx.author.id,))
         data = await c.fetchone()
         if data is None:
-            await self.bot.db.execute("INSERT INTO e_prefixes VALUES (?, ?)",(newprefix, ctx.author.id, datetime.utcnow(),))
+            await self.bot.db.execute("INSERT INTO e_prefixes VALUES (?, ?, ?)",(newprefix, ctx.author.id, datetime.utcnow(),))
         else:
-            await self.bot.db.execute("UPDATE e_prefixes SET prefix = ? WHERE userid = ?",(newprefix, ctx.author.id,datetime.utcnow(),))
+            await self.bot.db.execute("UPDATE e_prefixes SET prefix = ? WHERE userid = ?",(newprefix, ctx.author.id,))
         await self.bot.db.commit()
         self.bot.prefixes[ctx.author.id] = newprefix
         if newprefix == '':
