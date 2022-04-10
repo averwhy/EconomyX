@@ -195,9 +195,11 @@ class EcoBot(commands.Bot):
         else:
             return int(("0x"+player[5]),0)
         
-    def utc_calc(self, timestamp: str):
+    def utc_calc(self, timestamp: str, type: str = None):
         """Returns a precise format of the amount of time ago from a given UTC Timestamp."""
         formatted_ts = datetime.strptime(timestamp,"%Y-%m-%d %H:%M:%S.%f")
+        if type:
+            return discord.utils.format_dt(formatted_ts, type)
         return humanize.precisedelta(formatted_ts)
     
     def lottery_countdown_calc(self, timestamp:str): # thanks pikaninja
