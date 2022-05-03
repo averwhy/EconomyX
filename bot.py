@@ -27,6 +27,9 @@ class EcoBot(commands.Bot):
         for emoji in ('\N{WHITE HEAVY CHECK MARK}', '\N{CROSS MARK}'):
             await message.add_reaction(emoji)
 
+        async def setup_hook(self):
+            pass
+
         def check(payload):
             nonlocal confirm
             if payload.message_id != message.id or payload.user_id != authorid:
@@ -227,34 +230,44 @@ bot.launch_time = datetime.utcnow()
 bot.maintenance = False
 bot.updates_channel = 798014940086403083
 bot.default_prefix = "e$"
-print(bot.launch_time)
 
 async def startup():
     bot.db = await aiosqlite.connect('economyx.db')
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_users (id int, name text, guildid int, bal int, totalearnings int, profilecolor text, lotterieswon int)")
-    await bot.db.execute("CREATE TABLE IF NOT EXISTS e_stocks (stockid int, name text, points double, previouspoints double, ownerid int, created text, icon_url blob)")
-    await bot.db.execute("CREATE TABLE IF NOT EXISTS e_invests (stockid int, userid int, invested int, stockname text, invested_at double, invested_date blob)")
-    await bot.db.execute("CREATE TABLE IF NOT EXISTS e_lottery_users (userid int, username text, boughtwhen blob)")
-    await bot.db.execute("CREATE TABLE IF NOT EXISTS e_lottery_main (drawingwhen blob, drawingnum int)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_prefixes (userid int, prefix blob, setwhen blob)")
-    #await bot.db.execute("CREATE TABLE IF NOT EXISTS e_crypto (userid int)")
     print("Database connected")
-    
-    bot.backup_db = await aiosqlite.connect('ecox_backup.db')
-    print("Backup database is ready")
-    await bot.backup_db.close()
     
     cur = await bot.db.execute("SELECT * FROM e_prefixes")
     bot.prefixes = {user_id: prefix for user_id, prefix in (await cur.fetchall())}
-bot.loop.create_task(startup())
+
+    bot.backup_db = await aiosqlite.connect('ecox_backup.db')
+    print("Backup database is ready")
+    await bot.backup_db.close()
+
+    success = failed = 0
+    for cog in bot.initial_extensions:
+        try:
+            await bot.load_extension(f"{cog}")
+            success += 1
+        except Exception as e:
+            print(f"failed to load {cog}, error:\n", file=sys.stderr)
+            failed += 1
+            traceback.print_exc()
+        finally:
+            continue
+    print(f"loaded {success} cogs successfully, with {failed} failures.")
+
+    async with bot:
+        await bot.start(TOKEN)
 
 @bot.event
 async def on_ready():
-    print('Logged in as')
+    print('---------------------------------')
+    print('Logged in as', end=' ')
     print(bot.user.name)
     print(bot.user.id)
     print('---------------------------------')
-    
+
 @bot.event
 async def on_command_completion(command):
     await bot.db.commit() # just cuz
@@ -301,17 +314,7 @@ async def on_command_error(ctx, error): # this is an event that runs when there 
         # All other Errors not returned come here. And we can just print the default TraceBack.
         print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
-
-for cog in bot.initial_extensions:
-    success = failed = 0
-    try:
-        bot.load_extension(f"{cog}")
-        success += 1
-    except Exception as e:
-        print(f"Failed to load {cog}, error:\n", file=sys.stderr)
-        failed += 1
-        traceback.print_exc()
-    print(f"loaded {success} cogs successfully, with {failed} failures.")
         
 asyncio.set_event_loop(asyncio.SelectorEventLoop())
-bot.run(TOKEN)
+# bot.run(TOKEN)
+asyncio.run(startup())

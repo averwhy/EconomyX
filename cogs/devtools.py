@@ -3,7 +3,7 @@ import sys
 from discord.ext import commands, tasks
 import asyncio
 import aiosqlite
-from datetime import datetime, timedelta, tzinfo
+from datetime import datetime, timedelta
 import traceback
 import humanize
 from discord import Webhook
@@ -17,6 +17,25 @@ class devtools(commands.Cog):
     def __init__(self,bot):
         self.bot = bot
         self.log_hook = open("WEBHOOK.txt",'r').readline()
+    
+    async def cog_load(self):
+        self.database_backup_task.start()
+    
+    async def cog_unload(self):
+        await self.database_backup_task.cancel()
+
+    @tasks.loop(minutes=10)
+    async def database_backup_task(self):
+        try:
+            await self.bot.db.commit()
+            self.bot.backup_db = await aiosqlite.connect('ecox_backup.db')
+            await self.bot.db.backup(self.bot.backup_db)
+            await self.bot.backup_db.commit()
+            await self.bot.backup_db.close()
+            return
+        except Exception as e:
+            print(f"An error occured while backing up the database:\n`{e}`")
+            return
     
     async def cog_check(self,ctx):
         return ctx.author.id == OWNER_ID
@@ -42,13 +61,11 @@ Guild:           {guild.name}
 ID:              {guild.id}
 Owner:           {str(guild.owner)} ({guild.owner_id})
 Members:         {guild.member_count}
-Boosters:        {len(guild.premium_subscribers)}
 Boost level:     {guild.premium_tier}
 Channels:        {len(guild.channels)}
 Roles:           {len(guild.roles)}
 Desc:            {(guild.description or 'None')}
-Created:         {ts} ago
-Emoji limit:     {guild.emoji_limit}```
+Created:         {ts} ago```
         """
         async with aiohttp.ClientSession() as session:
             webhook = Webhook.from_url(self.log_hook, session=session)
@@ -72,31 +89,17 @@ Guild:           {guild.name}
 ID:              {guild.id}
 Owner:           {str(guild.owner)} ({guild.owner_id})
 Members:         {guild.member_count}
-Boosters:        {len(guild.premium_subscribers)}
 Boost level:     {guild.premium_tier}
 Channels:        {len(guild.channels)}
 Roles:           {len(guild.roles)}
 Desc:            {(guild.description or 'None')}
-Created:         {ts} ago
-Emoji limit:     {guild.emoji_limit}```
+Created:         {ts} ago```
         """
         async with aiohttp.ClientSession() as session:
             webhook = Webhook.from_url(self.log_hook, session=session)
             await webhook.send(msg)
         print(f"Left a guild '{guild.name}' at {humanize.naturaldate(datetime.utcnow())}. New guild count: {len(self.bot.guilds)}")
 
-    @tasks.loop(minutes=10)
-    async def database_backup_task(self):
-        try:
-            await self.bot.db.commit()
-            self.bot.backup_db = await aiosqlite.connect('ecox_backup.db')
-            await self.bot.db.backup(self.bot.backup_db)
-            await self.bot.backup_db.commit()
-            await self.bot.backup_db.close()
-            return
-        except Exception as e:
-            print(f"An error occured while backing up the database:\n`{e}`")
-            return
     
     @commands.group(invoke_without_command=True,hidden=True)
     async def dev(self, ctx):
@@ -140,24 +143,6 @@ Emoji limit:     {guild.emoji_limit}```
             print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
             traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
             return
-
-    @dev.command(aliases=["r","reloadall"])
-    async def reload(self, ctx):
-        output = ""
-        amount_reloaded = 0
-        async with ctx.channel.typing():
-            for e in self.bot.initial_extensions:
-                try:
-                    self.bot.reload_extension(e)
-                    amount_reloaded += 1
-                except Exception as e:
-                    e = str(e)
-                    output = output + e + "\n"
-            await asyncio.sleep(1)
-            if output == "":
-                await ctx.send(content=f"`{len(self.bot.initial_extensions)} cogs succesfully reloaded.`") # no output = no error
-            else:
-                await ctx.send(content=f"`{amount_reloaded} cogs were reloaded, except:` ```\n{output}```") # output
     
     @dev.command(aliases=["us"])
     async def updatestats(self, ctx):
@@ -172,24 +157,6 @@ Emoji limit:     {guild.emoji_limit}```
             total_db_users = await c.fetchone()
             await playerstatvc.edit(name=f"Players (in DB): {total_db_users[0]}")
         await ctx.send("Updated support server stats.")
-
-    @dev.command(aliases=["load","l"])
-    async def loadall(self, ctx):
-        output = ""
-        amount_loaded = 0
-        async with ctx.channel.typing():
-            for e in self.bot.initial_extensions:
-                try:
-                    self.bot.load_extension(e)
-                    amount_loaded += 1
-                except Exception as e:
-                    e = str(e)
-                    output = output + e + "\n"
-            await asyncio.sleep(1)
-            if output == "":
-                await ctx.send(content=f"`{len(self.bot.initial_extensions)} cogs succesfully loaded.`") # no output = no error
-            else:
-                await ctx.send(content=f"`{amount_loaded} cogs were loaded, except:` ```\n{output}```") # output
 
     @dev.command()
     async def status(self, ctx, *, text):
@@ -318,5 +285,5 @@ Emoji limit:     {guild.emoji_limit}```
         else:
             self.bot.maintenance = True
             return await ctx.send("Maintenence is now on.")
-def setup(bot):
-    bot.add_cog(devtools(bot))
+async def setup(bot):
+    await bot.add_cog(devtools(bot))

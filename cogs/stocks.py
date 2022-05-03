@@ -14,9 +14,13 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
     """
     def __init__(self, bot):
         self.bot = bot
+    
+    async def cog_load(self):
+        await self.bot.db.execute("CREATE TABLE IF NOT EXISTS e_stocks (stockid int, name text, points double, previouspoints double, ownerid int, created text, icon_url blob)")
+        await self.bot.db.execute("CREATE TABLE IF NOT EXISTS e_invests (stockid int, userid int, invested int, stockname text, invested_at double, invested_date blob)")
         self.main_stock_loop.start()
 
-    def cog_unload(self) -> None:
+    async def cog_unload(self):
         self.main_stock_loop.cancel()
         
     @tasks.loop(seconds=450)
@@ -343,5 +347,5 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
             except: pass
         await self.bot.db.commit()
         
-def setup(bot):
-    bot.add_cog(stocks(bot))
+async def setup(bot):
+    await bot.add_cog(stocks(bot))

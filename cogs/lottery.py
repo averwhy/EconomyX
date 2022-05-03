@@ -7,9 +7,13 @@ class lottery(commands.Cog):
     """The lottery. Users buy tickets and every 12 hours it is drawn. Use the `lottery` command to see when the next drawing is."""
     def __init__(self, bot):
         self.bot = bot
+
+    async def cog_load(self):
+        await self.bot.db.execute("CREATE TABLE IF NOT EXISTS e_lottery_users (userid int, username text, boughtwhen blob)")
+        await self.bot.db.execute("CREATE TABLE IF NOT EXISTS e_lottery_main (drawingwhen blob, drawingnum int)")
         self.lottery_task.start()
 
-    def cog_unload(self) -> None:
+    async def cog_unload(self):
         self.lottery_task.cancel()
     
     async def reset_lottery_time(self):
@@ -106,5 +110,5 @@ class lottery(commands.Cog):
         await ctx.send(f"You bought a lottery ticket for $100. The next lottery drawing is in `{ts[1]}h, {ts[2]}m, {ts[3]}s`. I will DM you if you are picked.")
         
         
-def setup(bot):
-    bot.add_cog(lottery(bot))
+async def setup(bot):
+    await bot.add_cog(lottery(bot))

@@ -344,5 +344,5 @@ class games(commands.Cog):
             await win((amount * 2), nd1, nd2, main_message)
         
 
-def setup(bot):
-    bot.add_cog(games(bot))
+async def setup(bot):
+    await bot.add_cog(games(bot))

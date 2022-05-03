@@ -56,5 +56,5 @@ class money_meta(commands.Cog):
         
         
         
-def setup(bot):
-    bot.add_cog(money_meta(bot))
+async def setup(bot):
+    await bot.add_cog(money_meta(bot))

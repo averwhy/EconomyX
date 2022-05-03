@@ -186,5 +186,5 @@ class player_meta(commands.Cog):
                 embed.add_field(name=f"{i[1]}",value=f"${i[3]}",inline=False)
             await ctx.send(embed=embed)
         
-def setup(bot):
-    bot.add_cog(player_meta(bot))
+async def setup(bot):
+    await bot.add_cog(player_meta(bot))
