@@ -2,6 +2,7 @@ import discord
 import asyncio
 from discord.ext import commands
 from discord.ext.commands.cooldowns import BucketType
+from .utils import player as Player
 
 from cogs.utils.botviews import X
 OWNER_ID = 267410788996743168
@@ -19,16 +20,13 @@ class player_meta(commands.Cog):
         """Views your profile. Can also view another users profile. They must be in the database."""
         if user is None:
             user = ctx.author
-        data = await self.bot.get_player(user.id)
-        if data is None:
-            await ctx.send(f"You dont have a profile. Try `{ctx.clean_prefix}register`")
-            return
-        embedcolor = int(("0x"+data[5]),0)
+        player = await Player.get(user.id, self.bot)
+        embedcolor = int(("0x"+player[5]),0)
         embed = discord.Embed(title=f"{str(user)}'s Profile",description=f"`ID: {user.id}`",color=embedcolor)
         embed.set_thumbnail(url=user.avatar.url)
-        embed.add_field(name="Balance",value=f"${data[3]}")
-        embed.add_field(name="Total earnings",value=f"${data[4]}")
-        embed.add_field(name="Lotteries Won", value=f"{data[6]}",inline=False)
+        embed.add_field(name="Balance",value=f"${player.balance}")
+        embed.add_field(name="Total earnings",value=f"${player.total_earnings}")
+        embed.add_field(name="Lotteries Won", value=f"{player.lotteries_won}",inline=False)
         embed.set_footer(text=f"EconomyX v{self.bot.version}",icon_url=self.bot.user.avatar.url)
         await ctx.send(embed=embed)
     
@@ -43,7 +41,7 @@ class player_meta(commands.Cog):
                 msg = await self.bot.add_player(ctx.author)
                 await ctx.send(msg)
                 return
-        msg2 = await ctx.send(f"Youre already in the database, {ctx.author.mention}\nIf you would like, i can purge your data from the database.\nSay `Yes` if you would like to start this process.")
+        msg2 = await ctx.send(f"Youre already in the database, {ctx.author.mention}\nIf you would like, i can delete all of your data from the database.\nSay `Yes` if you would like to start this process.")
         await self.bot.begin_user_deletion(ctx, msg2)
 
     @commands.command()

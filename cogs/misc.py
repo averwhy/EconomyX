@@ -11,6 +11,7 @@ from discord.ext.commands.cooldowns import BucketType
 import aiosqlite
 import inspect
 from .utils import botmenus
+from .utils import player as Player
 OWNER_ID = 267410788996743168
 # CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL
 # oh and also credit to kal
@@ -104,7 +105,7 @@ class misc(commands.Cog):
     async def prefix(self, ctx):
         """Views the prefix you use with the bot. Note that this is only per-user."""
         prefixdata = self.bot.prefixes.get(ctx.author.id, 'e$')
-        pcolor = await self.bot.get_player_color(ctx.author)
+        pcolor = await Player.get(ctx.author.id, self.bot).profile_color
         if pcolor is None: pcolor = discord.Color.random()
         embed = discord.Embed(color=pcolor)
         embed.add_field(name=f"{str(ctx.author)}'s prefix", value=prefixdata)
@@ -118,7 +119,7 @@ class misc(commands.Cog):
         c = await self.bot.db.execute("SELECT * FROM e_prefixes WHERE userid = ?",(ctx.author.id,))
         data = await c.fetchone()
         if data is None:
-            await self.bot.db.execute("INSERT INTO e_prefixes VALUES (?, ?, ?)",(newprefix, ctx.author.id, datetime.utcnow(),))
+            await self.bot.db.execute("INSERT INTO e_prefixes VALUES (?, ?, ?)",(newprefix, ctx.author.id, discord.utils.utcnow(),))
         else:
             await self.bot.db.execute("UPDATE e_prefixes SET prefix = ? WHERE userid = ?",(newprefix, ctx.author.id,))
         await self.bot.db.commit()
@@ -132,11 +133,11 @@ class misc(commands.Cog):
     @commands.command(aliases=["information"])
     async def info(self,ctx):
         """Shows bot information and statistics."""
-        data2 = await self.bot.get_player(ctx.author.id)
-        if data2 is None:
-            color = discord.Color.teal()
-        else:
-            color = int(("0x"+data2[5]),0)
+        try:
+            player = await Player.get(ctx.author.id, self.bot)
+            color = player.profile_color
+        except:
+            color = discord.Color.blurple()
         c = await self.bot.db.execute("SELECT SUM(bal) FROM e_users")
         money_total = await c.fetchone()
         c = await self.bot.db.execute("SELECT COUNT(id) FROM e_users")
@@ -174,18 +175,18 @@ class misc(commands.Cog):
     @commands.command()
     async def invite(self,ctx):
         """Returns a link that you can use to invite EconomyX to your server."""
-        data2 = await self.bot.get_player(ctx.author.id)
-        if data2 is None:
-            color = discord.Color.teal()
-        else:
-            color = int(("0x"+data2[5]),0)
-        await ctx.send(embed=discord.Embed(title="EconomyX Bot Invite",description="",url="https://discord.com/api/oauth2/authorize?client_id=780480654277476352&permissions=264192&scope=bot",color=color))
+        try:
+            player = await Player.get(ctx.author.id, self.bot)
+            color = player.profile_color
+        except:
+            color = discord.Color.blurple()
+        await ctx.send(embed=discord.Embed(title="EconomyX Bot Invite",description=f"Join the support server! `{ctx.clean_prefix}support`",url="https://discord.com/api/oauth2/authorize?client_id=780480654277476352&permissions=0&scope=bot",color=color))
     
     @commands.cooldown(1,10,BucketType.user)
     @commands.command()
     async def uptime(self, ctx):
         """Shows the uptime for EconomyX"""
-        delta_uptime = datetime.utcnow() - self.bot.launch_time
+        delta_uptime = discord.utils.utcnow() - self.bot.launch_time
         hours, remainder = divmod(int(delta_uptime.total_seconds()), 3600)
         minutes, seconds = divmod(remainder, 60)
         days, hours = divmod(hours, 24)

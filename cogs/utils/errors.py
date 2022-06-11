@@ -6,6 +6,9 @@ class BalanceUpdateError(commands.CommandError):
 class InvalidBetAmountError(commands.CommandError):
     pass
 
+class NotAPlayerError(commands.CommandError):
+    pass
+
 class BlacklistedChannelError(commands.CommandError):
     pass
 

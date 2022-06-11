@@ -1,8 +1,7 @@
-from fileinput import filename
 import random
 import asyncio
-from turtle import update
 from .utils.botviews import X
+from .utils import player as Player
 import discord
 from discord.ext import commands
 from discord.ext.commands.cooldowns import BucketType
@@ -27,25 +26,10 @@ class games(commands.Cog):
     @commands.cooldown(1,2,BucketType.user)
     @commands.command(aliases=["b"], description="Bets money. There is a 50/50 chance on winning and losing.")
     async def bet(self, ctx, amount):
-        player = await self.bot.get_player(ctx.author.id)
-        if player is None:
-            await ctx.send("You dont have a profile! Get one with `e$register`.")
-            return
-        if amount.lower() == "all":
-            amount = player[3]
-        amount = int(amount)
-        if amount != amount:
-            await ctx.send("Thats not a valid amount. Nice try, though")
-            return
-        if player[3] < amount:
-            await ctx.send(f"That bet is too big. You only have ${player[3]}.")
-            return
-        if amount < 1:
-            await ctx.send("Too small of a bet.")
-            return
+        player = await Player.get(ctx.author.id, self.bot)
+        player.validate_bet(amount)
         
         y = random.choice([True,False])
-        
         if y:
             data = await self.bot.on_bet_win(ctx.author,amount) # returns list
             await ctx.send(f"Won ${amount}\nNew balance: ${(data[1]+amount)}")
@@ -56,22 +40,8 @@ class games(commands.Cog):
     @commands.command(aliases=['rl'])
     async def roulette(self, ctx, amount):
         """Roulette gambling command. Starts a propmpt in which the user reacts with the color they wish to bet."""
-        player = await self.bot.get_player(ctx.author.id)
-        if player is None:
-            await ctx.send("You dont have a profile! Get one with `e$register`.")
-            return
-        if amount.lower() == "all":
-            amount = player[3]
-        amount = int(amount)
-        if amount != amount:
-            await ctx.send("Thats not a valid amount. Nice try, though")
-            return
-        if player[3] < amount:
-            await ctx.send(f"That bet is too big. You only have ${player[3]}.")
-            return
-        if amount < 5:
-            await ctx.send("Too small of a bet. (Minimum 5)")
-            return
+        player = await Player.get(ctx.author.id, self.bot)
+        player.validate_bet(amount)
         
         confirm = await ctx.send("Choose one of the 3 colors to bet on `(🔴: 2x, ⚫: 2x, 🟢: 35x)`:")
         rlist = ['🔴', '⚫', '🟢', '❌']
@@ -105,26 +75,10 @@ class games(commands.Cog):
     @commands.group(aliases=["rps"],invoke_without_command=True, description="Rock paper scissors.")
     async def rockpaperscissors(self, ctx, amount, choice):
         """Rock paper scissor game. `amount` is money you want to bet, and choice must be `rock`, `paper`, or `scissor` (singular, no 's)"""
-        summary = ""
-        player = await self.bot.get_player(ctx.author.id)
-        if player is None:
-            await ctx.send("You dont have a profile! Get one with `e$register`.")
-            return
-        if len(choice) < 4 or len(choice) > 7:
-            return await ctx.send("Invalid choice.")
-        if amount.lower() == "all":
-            amount = player[3]
-        amount = int(amount)
-        if amount != amount:
-            await ctx.send("Thats not a valid amount. Nice try, though")
-            return
-        if player[3] < amount:
-            await ctx.send(f"That bet is too big. You only have ${player[3]}.")
-            return
-        if amount < 5:
-            await ctx.send("Too small of a bet. (Minimum 5)")
-            return
+        player = await Player.get(ctx.author.id, self.bot)
+        player.validate_bet(amount)
         rand = random.randint(0,2)
+        summary = ""
         choices = ["paper", "scissor", "rock"]
         if not choice.strip().lower() in choices:
             return await ctx.send("It looks like you didn't specify `rock`, `paper`, or `scissor` (singular, no 's).")
@@ -147,21 +101,8 @@ class games(commands.Cog):
     @commands.command(description="Guessing game with money.")
     async def guess(self, ctx, amount: int):
         """Guesing game with money. You have 5 chances to guess the number randomly chosen between 1-10.\nThis amounts to a 50/50 chance."""
-        amount = int(amount)
-        amount = round(amount,2)
-        player = await self.bot.get_player(ctx.author.id)
-        if player is None:
-            await ctx.send("You dont have a profile! Get one with `e$register`.")
-            return
-        if amount != amount:
-            await ctx.send("Thats not a valid amount.")
-            return
-        if player[3] < amount:
-            await ctx.send(f"That bet is too big. You only have ${player[3]}.")
-            return
-        if amount < 1:
-            await ctx.send("Too small of a bet.")
-            return
+        player = await Player.get(ctx.author.id, self.bot)
+        player.validate_bet(amount)
         
         await ctx.send(f"Alright, your bet is ${amount}. If you lose, you pay that. If you win, you earn that.\nI'm thinking of a number between 1 and 10. You have 5 tries.")
         tries = 5
@@ -212,22 +153,8 @@ class games(commands.Cog):
         When you 'stand', you're keeping the cards you currently have. The dealer will then either reveal their hidden card (if *their*  card total is 17 or higher), or draw another (if their card total is 16 or lower.)"""
         from .utils.botviews import Blackjack
         
-        player = await self.bot.get_player(ctx.author.id)
-        if player is None:
-            await ctx.send(f"You dont have a profile! Get one with `{self.bot.default_prefix}register`.")
-            return
-        if amount.lower() == "all":
-            amount = player[3]
-        amount = int(amount)
-        if amount != amount:
-            await ctx.send("Thats not a valid amount. Nice try, though")
-            return
-        if player[3] < amount:
-            await ctx.send(f"That bet is too big. You only have ${player[3]}.")
-            return
-        if amount < 5:
-            await ctx.send("Too small of a bet. (Minimum 5)")
-            return
+        player = await Player.get(ctx.author.id, self.bot)
+        player.validate_bet(amount, minimum=10)
         
         bjview = Blackjack(self.bot, ctx.author, amount) # This view does all the work :)
         embed = discord.Embed(title="Blackjack")
@@ -252,22 +179,8 @@ class games(commands.Cog):
         - Roll a 7 or 11 and you win.
         - Roll a 2, 3 or 12 and you lose.
         - Roll a 4-6 or 8-10, re-roll until you either roll a 7 and lose, or roll your original roll and win 2x your bet."""
-        amount = int(amount)
-        amount = round(amount,2)
-        player = await self.bot.get_player(ctx.author.id)
-        if player is None:
-            await ctx.send("You dont have a profile! Get one with `e$register`.")
-            return
-        if amount != amount:
-            await ctx.send("Thats not a valid amount.")
-            return
-        if player[3] < amount:
-            await ctx.send(f"That bet is too big. You only have ${player[3]}.")
-            return
-        if amount < 1:
-            await ctx.send("Too small of a bet.")
-            return
-
+        player = await Player.get(ctx.author.id, self.bot)
+        player.validate_bet(amount, minimum=10)
         dice1 = random.randrange(1,6)
         dice2 = random.randrange(1,6)
         dices = dice1 + dice2

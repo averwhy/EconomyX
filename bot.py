@@ -1,14 +1,17 @@
 import discord
-from discord.ext import commands
 import aiosqlite
 import sys, os
 import traceback
 import asyncio
 import time
 import typing
-from datetime import datetime
-
 import humanize
+from discord.ext import commands
+from datetime import datetime, timezone
+from cogs.utils.errors import InvalidBetAmountError, NotAPlayerError
+from cogs.utils.player import player as Player
+from dateutil import parser
+
 os.environ["JISHAKU_NO_DM_TRACEBACK"] = "True" 
 os.environ["JISHAKU_HIDE"] = "True"
 os.environ["JISHAKU_NO_UNDERSCORE"] = "True"
@@ -80,9 +83,9 @@ class EcoBot(commands.Bot):
         await bot.db.commit()
         return data
     
-    async def get_stock_from_player(self, user):
+    async def get_stock_from_player(self, userid):
         """Gets a stock from the database. Takes a user/member object."""
-        cur = await bot.db.execute("SELECT * FROM e_stocks WHERE ownerid = ?",(user.id,))
+        cur = await bot.db.execute("SELECT * FROM e_stocks WHERE ownerid = ?",(userid,))
         data = await cur.fetchone()
         await bot.db.commit()
         return data
@@ -93,7 +96,7 @@ class EcoBot(commands.Bot):
         if player is None: return
         def check(m):
             return m.content.lower() == 'yes' and m.channel == ctx.channel and m.author == ctx.author
-        user_response = await bot.wait_for('message', check=check)
+        await bot.wait_for('message', check=check)
         msg = await ctx.send(
         """**If you proceed, you will __permanently__ lose the following data:**
             - Your profile (money, total earned amount, custom color, etc)
@@ -162,7 +165,7 @@ class EcoBot(commands.Bot):
     async def update_balance(self, userobj, **kwargs):
         """Updates balance."""
         
-        player = await bot.get_player(userobj.id)
+        player = await Player.get(userobj.id, self.bot)
         if player is None:
             return False
         amount = kwargs['amount'] # Required
@@ -177,7 +180,7 @@ class EcoBot(commands.Bot):
         await bot.db.execute("UPDATE e_users SET bal = (bal + ?) WHERE id = ?",(amount, userobj.id))
         if amount > 0:
             #They gained money, update total gained
-            await bot.db.execute("UPDATE e_users SET totalearnings = (totalearnings + ?) WHERE id = ?",(amount,userobj.id,))
+            await bot.db.execute("UPDATE e_users SET totalearnings = (totalearnings + ?) WHERE id = ?",(amount, userobj.id,))
     
     async def transfer_money(self,member_paying: typing.Union[discord.User, discord.Member] ,member_getting_paid: typing.Union[discord.User, discord.Member],amount):
         """Transfers money from one player to another."""
@@ -190,23 +193,16 @@ class EcoBot(commands.Bot):
         await bot.db.execute("UPDATE e_users SET bal = (bal + ?) WHERE id = ?",(amount,member_getting_paid.id,))
         await bot.db.commit()
         
-    async def get_player_color(self, memberobject):
-        """Gets a players custom color."""
-        player = await bot.get_player(memberobject.id)
-        if player is None:
-            return None
-        else:
-            return int(("0x"+player[5]),0)
-        
-    def utc_calc(self, timestamp: str, type: str = None):
-        """Returns a precise format of the amount of time ago from a given UTC Timestamp."""
-        formatted_ts = datetime.strptime(timestamp,"%Y-%m-%d %H:%M:%S.%f")
+    def utc_calc(self, timestamp: str, type: str = None, raw: bool = False, tz: timezone = timezone.utc):
+        formatted_ts = parser.parse(timestamp)
+        if raw:
+            return formatted_ts
         if type:
-            return discord.utils.format_dt(formatted_ts, type)
+            return discord.utils.format_dt(formatted_ts, type) # Why tf did i put this in here, im terrible at writing methods lmao
         return humanize.precisedelta(formatted_ts)
     
     def lottery_countdown_calc(self, timestamp:str): # thanks pikaninja
-        delta_uptime =  datetime.strptime(timestamp,"%Y-%m-%d %H:%M:%S.%f") - datetime.utcnow()
+        delta_uptime =  datetime.strptime(timestamp,"%Y-%m-%d %H:%M:%S.%f") - discord.utils.utcnow()
         hours, remainder = divmod(int(delta_uptime.total_seconds()), 3600)
         minutes, seconds = divmod(remainder, 60)
         days, hours = divmod(hours, 24)
@@ -226,10 +222,10 @@ bot.newstext = None
 bot.news_set_by = "no one yet.."
 bot.total_command_errors = 0
 bot.total_command_completetions = 0
-bot.launch_time = datetime.utcnow()
+bot.launch_time = discord.utils.utcnow()
 bot.maintenance = False
 bot.updates_channel = 798014940086403083
-bot.default_prefix = "e$"
+bot.default_prefix = "y$"
 
 async def startup():
     bot.db = await aiosqlite.connect('economyx.db')
@@ -289,6 +285,9 @@ async def on_command_error(ctx, error): # this is an event that runs when there 
         await ctx.send(embed=embed, delete_after=60)
     if isinstance(error, discord.ext.commands.errors.CommandNotFound):      
         return
+    elif isinstance(error, NotAPlayerError):
+        await ctx.send("You dont have a profile! Get one with `e$register`.")
+        return
     elif isinstance(error, discord.ext.commands.errors.CommandOnCooldown): 
         s = round(error.retry_after,2) # todo: convert to humanize instead of this dumb math
         if s > 3600: # over 1 hour
@@ -308,13 +307,16 @@ async def on_command_error(ctx, error): # this is an event that runs when there 
         return
     elif isinstance(error, ValueError):
         return await ctx.send("It looks like that's an invalid amount.")
+    elif isinstance(error, InvalidBetAmountError):
+        await ctx.send(error)
     else:
         bot.total_command_errors += 1
         await ctx.send(f"```diff\n- {error}\n```")
         # All other Errors not returned come here. And we can just print the default TraceBack.
         print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
-        
-asyncio.set_event_loop(asyncio.SelectorEventLoop())
-# bot.run(TOKEN)
-asyncio.run(startup())
+
+if __name__ == "__main__":      
+    asyncio.set_event_loop(asyncio.SelectorEventLoop())
+    # bot.run(TOKEN)
+    asyncio.run(startup())

@@ -1,13 +1,14 @@
 import discord
 import sys
 from discord.ext import commands, tasks
-import asyncio
+from .utils import player as Player
 import aiosqlite
 from datetime import datetime, timedelta
 import traceback
 import humanize
 from discord import Webhook
 import aiohttp
+from .utils.errors import NotAPlayerError
 OWNER_ID = 267410788996743168
 
 class devtools(commands.Cog):
@@ -70,7 +71,7 @@ Created:         {ts} ago```
         async with aiohttp.ClientSession() as session:
             webhook = Webhook.from_url(self.log_hook, session=session)
             await webhook.send(msg)
-        print(f"Joined new guild '{guild.name}' at {humanize.naturaldate(datetime.utcnow())}. New guild count: {len(self.bot.guilds)}")
+        print(f"Joined new guild '{guild.name}' at {humanize.naturaldate(discord.utils.utcnow())}. New guild count: {len(self.bot.guilds)}")
         
     @commands.Cog.listener()
     async def on_guild_remove(self, guild):
@@ -98,7 +99,7 @@ Created:         {ts} ago```
         async with aiohttp.ClientSession() as session:
             webhook = Webhook.from_url(self.log_hook, session=session)
             await webhook.send(msg)
-        print(f"Left a guild '{guild.name}' at {humanize.naturaldate(datetime.utcnow())}. New guild count: {len(self.bot.guilds)}")
+        print(f"Left a guild '{guild.name}' at {humanize.naturaldate(discord.utils.utcnow())}. New guild count: {len(self.bot.guilds)}")
 
     
     @commands.group(invoke_without_command=True,hidden=True)
@@ -110,34 +111,7 @@ Created:         {ts} ago```
     async def force(self, ctx):
         """Forces a draw of the lottery"""
         try:
-            print("(force) draw")
-            # So, lets draw, then reset
-            cur = await self.bot.db.execute("SELECT COUNT(*) FROM e_lottery_users")
-            data2 = await cur.fetchone()
-            if int(data2[0]) <= 0:
-                print("no users, drawing again in 12 hours")
-                newdrawingtime = datetime.utcnow() + timedelta(hours=12)
-                await self.bot.db.execute("UPDATE e_lottery_main SET drawingwhen = ?",(newdrawingtime,))
-                await self.bot.db.commit()
-                return await ctx.send("Theres no users in the lottery. I've reset it and it will draw again in 12 hours.")
-            winningamount = (data2[0] * 100)
-            c = await self.bot.db.execute("SELECT * FROM e_lottery_users ORDER BY RANDOM()")
-            winningplayer = await c.fetchone()
-            user = await self.bot.fetch_user(winningplayer[0])
-            ts = self.bot.utc_calc(winningplayer[2])
-            try:
-                await user.send(f"Hey {user.mention}, **You won the lottery in EconomyX!**\nYou bought a ticket {ts} ago.\nYou won ${winningamount}")
-                await ctx.send(f"{user.mention} ({user.id}) won the lottery, with ${winningamount}. They bought a ticket {ts} ago.")
-            except discord.Forbidden:
-                #we cant dm them. Sad!
-                #i guess we'll just pay them and up their stats. oh well
-                pass
-            await self.bot.db.execute("UPDATE e_users SET bal = (bal + ?) WHERE id = ?",(winningamount,winningplayer[0],))
-            await self.bot.db.execute("UPDATE e_users SET lotterieswon = (lotterieswon + 1) WHERE id = ?",(winningplayer[0],))
-            await self.bot.db.execute("DELETE FROM e_lottery_users")
-            newdrawingtime = datetime.utcnow() + timedelta(hours=12)
-            await self.bot.db.execute("UPDATE e_lottery_main SET drawingwhen = ?",(newdrawingtime,))
-            await self.bot.db.execute("UPDATE e_lottery_main SET drawingnum = (drawingnum + 1)")
+            await self.bot.get_cog('lottery').draw(force=True)
         except Exception as error:
             await ctx.send(f"An error occured while force drawing: `{error}`")
             print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
@@ -147,7 +121,6 @@ Created:         {ts} ago```
     @dev.command(aliases=["us"])
     async def updatestats(self, ctx):
         async with ctx.channel.typing():
-            logchannel = await self.bot.fetch_channel(798016167163723776)
             guildstatvc = await self.bot.fetch_channel(798014995496960000)
             playerstatvc = await self.bot.fetch_channel(809977048868585513)
             await guildstatvc.edit(name=f"Guilds: {len(self.bot.guilds)}")
@@ -173,7 +146,7 @@ Created:         {ts} ago```
             await ctx.message.add_reaction("\U0000274c")
             await ctx.send(f"`{e}`")
 
-    @dev.command()
+    @dev.command(aliases=["fuckoff","die","halt","cease","shutdown"])
     async def stop(self, ctx):
         await ctx.send("bye lol")
         print(f"Bot is being stopped by {ctx.message.author} ({ctx.message.id})")
@@ -204,12 +177,13 @@ Created:         {ts} ago```
             await ctx.send(data)
         except Exception as e:
             await ctx.send(f"```sql\n{e}\n```")
+
     @sql.command()
     async def run(self, ctx, *, statement):
         try:
-            c = await self.bot.db.execute(statement)
+            await self.bot.db.execute(statement)
             await self.bot.db.commit()
-            await ctx.message.add_reaction(emoji="\U00002705")
+            await ctx.message.add_reaction("\U00002705")
         except Exception as e:
             await ctx.send(f"```sql\n{e}\n```")
             
@@ -222,37 +196,29 @@ Created:         {ts} ago```
         if user is None:
             await ctx.send("Provide an user")
             return
-        player = await self.bot.get_player(user.id)
-        if player is None:
-            await ctx.send("They're not even in the database...")
-            return
-        
+        try:
+            await Player.get(ctx.author.id, self.bot)
+        except NotAPlayerError:
+            return await ctx.send("That player doesn't seem to have a profile.")
         await self.bot.db.execute("UPDATE e_users SET bal = 100 WHERE id = ?",(user.id,))
         await ctx.send("Reset.")
         
     @eco.command()
     async def give(self, ctx, user: discord.User, amount):
         amount = float(amount)
-        player = await self.bot.get_player(user.id)
-        if player is None:
-            await ctx.send("They're not even in the database...")
-            return
-        
+        try:
+            player = await Player.get(ctx.author.id, self.bot)
+        except NotAPlayerError:
+            return await ctx.send("That player doesn't seem to have a profile.")
         await self.bot.db.execute("UPDATE e_users SET bal = (bal + ?) WHERE id = ?",(amount, user.id,))
-        await ctx.send(f"Success.\nNew balance: ${(player[3] + amount)}")
+        await ctx.send(f"Success.\nNew balance: ${(player.balance + amount)}")
     
     @eco.command(name="set")
-    async def setamount(self, ctx, user: discord.User = None, amount: float = None):
-        if user is None:
-            await ctx.send("Provide an user.")
-            return
-        if amount is None:
-            await ctx.send("Provide an amount.")
-        player = await self.bot.get_player(user.id)
-        if player is None:
-            await ctx.send("They're not even in the database...")
-            return
-        
+    async def setamount(self, ctx, user: discord.User, amount: int):
+        try:
+            await Player.get(ctx.author.id, self.bot)
+        except NotAPlayerError:
+            return await ctx.send("That player doesn't seem to have a profile.")
         await self.bot.db.execute("UPDATE e_users SET bal = ? WHERE id = ?",(amount, user.id,))
         await ctx.send("Success.")
         

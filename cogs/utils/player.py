@@ -1,17 +1,23 @@
 from __future__ import annotations
-import asyncio
-from bot import EcoBot
-import errors
+import typing
+from . import errors
+
+async def get(id: int, bot):
+    return await player(id, bot).__ainit__()
 
 class player:
-    def __init__(self, bot: EcoBot) -> None:
+    def __init__(self, id, bot) -> None:
         self.bot = bot
-        asyncio.run(self.__ainit__)
+        self.id = id
     
-    async def __ainit__(self, bot):
-        cur = await bot.db.execute("SELECT * FROM e_users WHERE id = ?",(id,))
+    async def __ainit__(self):
+        cur = await self.bot.db.execute("SELECT * FROM e_users WHERE id = ?",(self.id,))
         data = await cur.fetchone()
+        if data is None:
+            self.exists = False
+            raise errors.NotAPlayerError()
         self.raw_data = data
+        self.exists = True
         self.id = int(data[0])
         self.name = str(data[1])
         self.guild_id = int(data[2])
@@ -20,16 +26,22 @@ class player:
         self.total_earnings = int(data[4])
         # see the @property below for data[5]
         self.lotteries_won = int(data[6])
+        return self
 
     @property
     def profile_color(self):
         return int(("0x" + (self.raw_data[5]).strip()), 0)
 
-    async def validate_bet(self, amount: int, minimum: int = 1):
+    def validate_bet(self, amount: typing.Union[int, str], minimum: int = 1, allow_all: bool = True):
+        """Validates a players bet to ensure that the player can't bet too much or too little money."""
+        if allow_all:
+            if isinstance(amount, str) and amount.strip() == "all":
+                amount = self.balance
+        amount = int(amount)
         if amount != amount:
             raise errors.InvalidBetAmountError("Invalid bet. Nice try, though")
-        if player[3] < amount:
-            raise errors.InvalidBetAmountError(f"That bet is too big. You only have ${player[3]}.")
+        if self.balance < amount:
+            raise errors.InvalidBetAmountError(f"That bet is too big. You only have ${self.balance}.")
         if amount < minimum:
             raise errors.InvalidBetAmountError(f"Too small of a bet. (Minimum {minimum})")
 

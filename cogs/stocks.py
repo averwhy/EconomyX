@@ -6,6 +6,7 @@ from discord.ext import commands
 from discord.ext import tasks
 from datetime import datetime
 from .utils.botviews import Confirm
+from .utils import player as Player
 OWNER_ID = 267410788996743168
 
 class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
@@ -23,7 +24,7 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
     async def cog_unload(self):
         self.main_stock_loop.cancel()
         
-    @tasks.loop(seconds=450)
+    @tasks.loop(seconds=900)
     async def main_stock_loop(self):
         await self.bot.wait_until_ready()
         c = await self.bot.db.execute("SELECT * FROM e_stocks")
@@ -48,21 +49,20 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
     @commands.command(aliases=["port","pf"])
     async def portfolio(self, ctx, user: discord.User = None):
         """Views a players stock portfolio. Includes all investments, and owned stocks."""
-        player = await self.bot.get_player(ctx.author.id)
+        player = await Player.get(ctx.author.id, self.bot)
         if player is None:
             await ctx.send("You dont have a profile! Get one with `e$register`.")
             return
         if user is None:
             user = ctx.author
-        embedcolor = int(("0x"+player[5]),0)
-        embed = discord.Embed(title=f"{str(user)}'s stock portfolio",description=f"`ID: {user.id}`",color=embedcolor)
-        playerstock = await self.bot.get_stock_from_player(ctx.author)
+        embed = discord.Embed(title=f"{str(user)}'s stock portfolio",description=f"`ID: {user.id}`",color=player.profile_color)
+        playerstock = await self.bot.get_stock_from_player(ctx.author.id)
         if playerstock is None:
             embed.add_field(name="Owned stock",value="None")
         else:
             embed.add_field(name="Owned Stock",value=f"{playerstock[1]} [`{playerstock[0]}`]")
-            tl = self.bot.utc_calc(playerstock[5])
-            embed.add_field(name="Stock Created",value=f"{tl} ago")
+            tl = self.bot.utc_calc(playerstock[5], type="R")
+            embed.add_field(name="Stock Created",value=tl)
             embed.add_field(name="Stock Points",value=f"{round(playerstock[2],1)}")
         c = await self.bot.db.execute("SELECT * FROM e_invests WHERE userid = ?",(user.id,))
         playerinvests = await c.fetchall()
@@ -81,18 +81,18 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
     @commands.group(aliases=["stocks","st"], invoke_without_command=True)
     async def stock(self, ctx):
         """Stocks management commands. Invoking without a command shows list of top stocks."""
-        player = await self.bot.get_player(ctx.author.id)
-        if player is None:
-            await ctx.send("You dont have a profile! Get one with `e$register`.")
-            return
-        embedcolor = int(("0x"+player[5]),0)
+        player = await Player.get(ctx.author.id, self.bot)
         cur = await self.bot.db.execute("SELECT * FROM e_stocks ORDER BY points DESC;")
         allstocks = await cur.fetchall()
         cur = await self.bot.db.execute("SELECT SUM(invested) FROM e_invests")
         total_invested = await cur.fetchone()
         cur = await self.bot.db.execute("SELECT SUM(points) FROM e_stocks")
         total_points = await cur.fetchone()
-        embed = discord.Embed(title="All Stocks",description=f"Total amount invested: ${total_invested[0]}, Total stock points: {round(total_points[0], 2)}")
+        embed = discord.Embed(
+            title="All Stocks",
+            description=f"Total amount invested: ${total_invested[0]}, Total stock points: {round(total_points[0], 2)}",
+            color=player.profile_color
+            )
         counter = 0
         for i in allstocks:
             if counter > 10:
@@ -107,12 +107,9 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
     @stock.command(description="Views a specified stock.", aliases=["info","show"])
     async def view(self, ctx, name_or_id):
         """Shows a stock. You can specify a name or ID."""
-        player = await self.bot.get_player(ctx.author.id)
-        if player is None:
-            return await ctx.send("You dont have a profile! Get one with `e$register`.")
         stock = await self.bot.get_stock(name_or_id)
         if not stock:
-            return await ctx.send("I couldn't find that stock, check the name or ID again.")
+            return await ctx.send("I couldn't find that stock, check the name or ID again. Note: Names are case sensitive.")
         embed = discord.Embed(title=f"{stock[1]}", description=f"ID: {stock[0]}")
         tl = self.bot.utc_calc(stock[5])
         embed.add_field(name="Stock Created",value=f"{tl} ago")
@@ -122,22 +119,19 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
             embed.set_thumbnail(url=stock[6])
         await ctx.send(embed=embed)
         
-    
     @stock.command(aliases=["c"], description="Creates a new stock.")
     async def create(self, ctx, name, icon_url):
         """Creates a stock. A name and direct link to an image are required."""
-        player = await self.bot.get_player(ctx.author.id)
-        if player is None:
-            return await ctx.send("You dont have a profile! Get one with `e$register`.")
-        if player[3] < 1000:
-            return await ctx.send(f"Sorry. You have to have at least $1000 to create a stock.\nYour balance: ${player[3]}")
-        playerstock = await self.bot.get_stock_from_player(ctx.author)
+        player = await Player.get(ctx.author.id, self.bot)
+        if player.balance < 1000:
+            return await ctx.send(f"Sorry. You have to have $1000 to create a stock.\nYour balance: ${player.balance}")
+        playerstock = await self.bot.get_stock_from_player(ctx.author.id)
         if playerstock is not None:
             return await ctx.send("You already have a stock. If you want to edit it, use `e$stock edit`")
         if len(name) > 5:
             return await ctx.send("The stock name must be less than or equal to 5 characters.")
-        if not name.isalnum():
-            return await ctx.send("Stock names must be alphanumeric.")
+        if not name.isalpha():
+            return await ctx.send("Stock names must be letters only.")
         name = name.upper()
         result = re.findall(r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+", icon_url)
         if result == []:
@@ -148,9 +142,9 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
         msg = await ctx.send(f"Stock name: {name}\nIcon URL: <{icon_url}>\nID: {stockid}\nStarting points: 10\n**Are you sure you want to create this stock for $1000?**", view=view)
         await view.wait()
         if view.value is None:
-            return await msg.edit(f"Timed out after 3 minutes.")
+            return await msg.edit(content=f"Timed out after 3 minutes.")
         elif view.value:
-            stock_created_at = datetime.utcnow()
+            stock_created_at = discord.utils.utcnow()
             await self.bot.db.execute("UPDATE e_users SET bal = (bal - 1000) WHERE id = ?",(ctx.author.id,))
             await self.bot.db.execute("INSERT INTO e_stocks VALUES (?, ?, 10.0, 10.0, ?, ?, ?)",(stockid, name, ctx.author.id, stock_created_at, icon_url,))
             await msg.delete()
@@ -161,9 +155,7 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
     
     @stock.command(description="Deletes an owned stock. Please consider renaming first, before deleting. You do not get refunded the money you paid to create the stock.")
     async def delete(self, ctx):
-        player = await self.bot.get_player(ctx.author.id)
-        if player is None:
-            return await ctx.send("You dont have a profile! Get one with `e$register`.")
+        await Player.get(ctx.author.id, self.bot) # Check if player exists
         playerstock = await self.bot.get_stock_from_player(ctx.author)
         if playerstock is None:
             return await ctx.send("You don't have a stock. If you want make one, use `e$stock create <name>`")
@@ -187,10 +179,7 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
         
     @stock.command(aliases=["e"], description="Edits a stock. Don't invoke with arguments.")
     async def edit(self, ctx):
-        player = await self.bot.get_player(ctx.author.id)
-        if player is None:
-            await ctx.send("You dont have a profile! Get one with `e$register`.")
-            return
+        await Player.get(ctx.author.id, self.bot)
         playerstock = await self.bot.get_stock_from_player(ctx.author.id)
         if playerstock is None:
             return await ctx.send("You don't have a stock. If you want make one, use `e$stock create <name>`")
@@ -237,31 +226,13 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
                     except:
                         await ctx.send('👍')
                     await self.bot.db.execute("UPDATE e_stocks SET ",(name, ctx.author.id,))
-    
-    # @stock.command(description="Starts a interative command to view FAQ's about stocks.")
-    # async def faq(self, ctx):
-    #     thefaq = [
-    #         ["How do stocks work?",
-    #         "EconomyX stocks are fairly simple. Users can create stocks, and they can invest in stocks. Investing allows you to put a certain amount of money into a stock, at a certain point. Whenever you sell your investment, the money you earn back is calculated and paid back to you. (To see how it is calculated, use `e$help invest sell`"]
-    #     ]
             
     @commands.group(invoke_without_command=True)
     async def invest(self, ctx, name_or_id, amount):
         """The base command for investments.
         Invoking `invest` without a subcommand allows you to invest in stocks."""
-        player = await self.bot.get_player(ctx.author.id)
-        if player is None:
-            await ctx.send("You dont have a profile! Get one with `e$register`.")
-            return
-        if amount.lower() == "all":
-            amount = player[3]
-        amount = int(amount)
-        if amount != amount:
-            await ctx.send("Thats not a valid amount. Nice try, though")
-            return
-        if player[3] < amount:
-            await ctx.send(f"That investment is too big. You only have ${player[3]}.")
-            return
+        player = await Player.get(ctx.author.id, self.bot)
+        player.validate_bet(amount)
         stock = await self.bot.get_stock(name_or_id)
         if stock is None:
             await ctx.send("I couldn't find that stock. Double check the name/ID.")
@@ -284,7 +255,7 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
         await self.bot.db.execute("UPDATE e_stocks SET points = (points + ?) WHERE stockid = ?",(am, name_or_id,))
         await self.bot.db.execute("UPDATE e_stocks SET points = (points + ?) WHERE name = ?",(am, name_or_id,))
         #(stockid int, userid int, invested double, stockname text, invested_at double, invested_date blob)
-        rn = datetime.utcnow()
+        rn = discord.utils.utcnow()
         await self.bot.db.execute("INSERT INTO e_invests VALUES (?, ?, ?, ?, ?, ?)",(stock[0], ctx.author.id, amount, stock[1], stock[2],rn,))
         await self.bot.db.execute("UPDATE e_users SET bal = (bal - ?) WHERE id = ?",(amount,ctx.author.id,))
         await ctx.send(f"Invested ${amount} in **{stock[1]}** at {round(stock[2], 2)} points!")
@@ -292,18 +263,14 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
     @invest.command(invoke_without_command=True, description="Sells an investment.\nThe money you earn back is calculated like this: `money_to_pay = (current_stock_points - points_at_investment) * amount_invested`")
     async def sell(self, ctx, name_or_id):
         name_or_id = name_or_id.upper()
-        player = await self.bot.get_player(ctx.author.id)
-        if player is None:
-            await ctx.send("You dont have a profile! Get one with `e$register`.")
-            return
+        player = await Player.get(ctx.author.id, self.bot)
         cur = await self.bot.db.execute("SELECT * FROM e_invests WHERE stockname = ? AND userid = ?",(name_or_id,ctx.author.id,))
         investment = await cur.fetchone()
         if investment is None:
             cur = await self.bot.db.execute("SELECT * FROM e_invests WHERE stockid = ? AND userid = ?",(name_or_id,ctx.author.id,))
             investment = await cur.fetchone()
             if investment is None:
-                await ctx.send("I couldn't find that stock, or you're not invested in it. Double check the name or ID.")
-                return
+                return await ctx.send("I couldn't find that stock, or you're not invested in it. Double check the name or ID.")
             
         c = await self.bot.db.execute("SELECT * FROM e_stocks WHERE stockid = ?",(investment[0],))
         stock = await c.fetchone()
@@ -325,6 +292,9 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
         if (money_to_pay - amount_invested) > 0:
             summary += (f"\nThis is a net **profit** of ${(money_to_pay - amount_invested)}\n**Are you sure you want to sell your investment?**")
         elif (money_to_pay - amount_invested) < 0:
+            gross_bal = (player.bal + (money_to_pay - amount_invested))
+            if gross_bal < 0:
+                return await ctx.send(f"You cannot sell this investment, because it would put you into debt (${(gross_bal)}). Try again later when the stock has higher points.")
             summary += (f"\nThis is a net **loss** of ${(money_to_pay - amount_invested)}\n**Are you sure you want to sell your investment?**")
         else:
             summary += (f"\nYou are essentially being refunded, as the amount you are getting paid is the same you invested.\n**Are you sure you want to sell your investment?**")

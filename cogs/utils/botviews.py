@@ -227,7 +227,7 @@ class Blackjack(discord.ui.View):
         return
             
     @discord.ui.button(label='Cancel', style=discord.ButtonStyle.danger)
-    async def cancel(self, button: discord.ui.Button, interaction: discord.Interaction):
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.owner.id: return await interaction.response.send_message("This isn't your game of Blackjack.", ephemeral=True)
         self.stop()
         await interaction.message.delete()
@@ -238,7 +238,7 @@ class X(discord.ui.View):
         super().__init__()
     
     @discord.ui.button(label="", emoji="\U0001f5d1")
-    async def delete(self, button: discord.ui.Button, interaction: discord.Interaction):
+    async def delete(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != interaction.user.id: return await interaction.response.send_message("No.", ephemeral=True)
         self.stop()
         await interaction.message.delete()
@@ -252,14 +252,14 @@ class Confirm(discord.ui.View):
     # stop the View from listening to more input.
     # We also send the user an ephemeral message that we're confirming their choice.
     @discord.ui.button(label='Confirm', style=discord.ButtonStyle.green)
-    async def confirm(self, button: discord.ui.Button, interaction: discord.Interaction):
+    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != interaction.user.id: return await interaction.response.send_message("No.", ephemeral=True)
         self.value = True
         self.stop()
 
     # This one is similar to the confirmation button except sets the inner value to `False`
     @discord.ui.button(label='Cancel', style=discord.ButtonStyle.grey)
-    async def cancel(self, button: discord.ui.Button, interaction: discord.Interaction):
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != interaction.user.id: return await interaction.response.send_message("No.", ephemeral=True)
         self.value = False
         self.stop()
