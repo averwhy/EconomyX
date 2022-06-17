@@ -217,7 +217,7 @@ bot.initial_extensions = ["jishaku","cogs.player_meta","cogs.devtools","cogs.gam
 with open("TOKEN.txt",'r') as t:
     TOKEN = t.readline()
 bot.time_started = time.localtime()
-bot.version = '0.4.0'
+bot.version = '0.5.0'
 bot.newstext = None
 bot.news_set_by = "no one yet.."
 bot.total_command_errors = 0
@@ -225,7 +225,7 @@ bot.total_command_completetions = 0
 bot.launch_time = discord.utils.utcnow()
 bot.maintenance = False
 bot.updates_channel = 798014940086403083
-bot.default_prefix = "y$"
+bot.default_prefix = "e$"
 
 async def startup():
     bot.db = await aiosqlite.connect('economyx.db')
