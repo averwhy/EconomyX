@@ -233,7 +233,7 @@ async def startup():
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_prefixes (userid int, prefix blob, setwhen blob)")
     print("Database connected")
     
-    cur = await bot.db.execute("SELECT * FROM e_prefixes")
+    cur = await bot.db.execute("SELECT userid, prefix FROM e_prefixes")
     bot.prefixes = {user_id: prefix for user_id, prefix in (await cur.fetchall())}
 
     bot.backup_db = await aiosqlite.connect('ecox_backup.db')
