@@ -78,7 +78,7 @@ class lottery(commands.Cog):
         c = await self.bot.db.execute("SELECT COUNT(*) FROM e_lottery_users")
         usercount = (await c.fetchone())[0]
         try: 
-            pcolor = await Player.get(ctx.author.id, self.bot).profile_color
+            pcolor = (await Player.get(ctx.author.id, self.bot)).profile_color
         except NotAPlayerError:
             color = 0x2F3136
         c = await self.bot.db.execute("SELECT * FROM e_lottery_main")

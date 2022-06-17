@@ -21,12 +21,18 @@ class player_meta(commands.Cog):
         if user is None:
             user = ctx.author
         player = await Player.get(user.id, self.bot)
-        embedcolor = int(("0x"+player[5]),0)
+        job_data = await player.get_job_data()
+        job_desc = ""
+        if not job_data: # if none
+            job_desc = "None!"
+        else: job_desc = f"Level {job_data[2]} | Worked {job_data[3]} times"
+        embedcolor = player.profile_color
         embed = discord.Embed(title=f"{str(user)}'s Profile",description=f"`ID: {user.id}`",color=embedcolor)
         embed.set_thumbnail(url=user.avatar.url)
         embed.add_field(name="Balance",value=f"${player.balance}")
         embed.add_field(name="Total earnings",value=f"${player.total_earnings}")
         embed.add_field(name="Lotteries Won", value=f"{player.lotteries_won}",inline=False)
+        embed.add_field(name="Job Stats", value=job_desc)
         embed.set_footer(text=f"EconomyX v{self.bot.version}",icon_url=self.bot.user.avatar.url)
         await ctx.send(embed=embed)
     

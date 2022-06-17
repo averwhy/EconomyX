@@ -71,8 +71,8 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
         else:
             t = ""
             for i in playerinvests:
-                tl = self.bot.utc_calc(i[5])
-                t = t + (f"{i[3]} [`{i[0]}`]: invested ${i[2]} @ {round(i[4],1)} points | {tl} ago\n")
+                tl = self.bot.utc_calc(i[5], type='R')
+                t = t + (f"{i[3]} [`{i[0]}`]: invested ${i[2]} @ {round(i[4],1)} points, {tl}\n")
             if t == "":
                 t = "None!"
             embed.add_field(name="Invests",value=t,inline=False)

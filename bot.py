@@ -199,10 +199,10 @@ class EcoBot(commands.Bot):
             return formatted_ts
         if type:
             return discord.utils.format_dt(formatted_ts, type) # Why tf did i put this in here, im terrible at writing methods lmao
-        return humanize.precisedelta(formatted_ts)
+        return humanize.precisedelta(formatted_ts.astimezone())
     
     def lottery_countdown_calc(self, timestamp:str): # thanks pikaninja
-        delta_uptime =  datetime.strptime(timestamp,"%Y-%m-%d %H:%M:%S.%f") - discord.utils.utcnow()
+        delta_uptime =  parser.parse(timestamp) - discord.utils.utcnow()
         hours, remainder = divmod(int(delta_uptime.total_seconds()), 3600)
         minutes, seconds = divmod(remainder, 60)
         days, hours = divmod(hours, 24)
@@ -266,7 +266,10 @@ async def on_ready():
 
 @bot.event
 async def on_command_completion(command):
-    await bot.db.commit() # just cuz
+    try: await bot.db.commit() # just cuz
+    except ValueError:
+        # bot is stopping
+        pass
     bot.total_command_completetions += 1
     
 class MaintenenceActive(commands.CheckFailure):

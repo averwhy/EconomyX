@@ -12,23 +12,17 @@ import aiosqlite
 import inspect
 from .utils import botmenus
 from .utils import player as Player
+from .utils.errors import NotAPlayerError
 OWNER_ID = 267410788996743168
-# CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL CREDIT TO KAL
-# oh and also credit to kal
-# await kal.credit(kal=kal)
-# kal to credit
-
+# Thanks to Kal for helping me out with this
 class HelpCommand(commands.HelpCommand):
-    """Sup averwhy hopefully this is all easy to understand."""
 
     # This fires once someone does `<prefix>help`
     async def send_bot_help(self, mapping: Mapping[typing.Optional[commands.Cog], typing.List[commands.Command]]):
         ctx = self.context
-        clr = await ctx.bot.get_player_color(ctx.author)
-        if clr is None:
-            if ctx.guild is not None: clr = ctx.guild.me.color
-            else: clr = discord.Color.dark_gray()
-        embed = discord.Embed(title="EconomyX Help", color=clr)
+        pcolor = (await Player.get(ctx.author.id, ctx.bot)).profile_color
+        if pcolor is None: pcolor = discord.Color.dark_gray()
+        embed = discord.Embed(title="EconomyX Help", color=pcolor)
         embed.set_footer(text=f"Do {ctx.clean_prefix}help [command] for more info")
         for cog, cmds in mapping.items():
             filtered = await self.filter_commands(cmds, sort=True)
@@ -105,7 +99,7 @@ class misc(commands.Cog):
     async def prefix(self, ctx):
         """Views the prefix you use with the bot. Note that this is only per-user."""
         prefixdata = self.bot.prefixes.get(ctx.author.id, 'e$')
-        pcolor = await Player.get(ctx.author.id, self.bot).profile_color
+        pcolor = (await Player.get(ctx.author.id, self.bot)).profile_color
         if pcolor is None: pcolor = discord.Color.random()
         embed = discord.Embed(color=pcolor)
         embed.add_field(name=f"{str(ctx.author)}'s prefix", value=prefixdata)
@@ -258,14 +252,14 @@ class misc(commands.Cog):
         channel = self.bot.get_channel(self.bot.updates_channel)
         if channel is None:
             channel = await self.bot.fetch_channel(self.bot.updates_channel)
-        clr = await ctx.bot.get_player_color(ctx.author)
-        if clr is None:
+        try: clr = (await Player.get(ctx.author.id, self.bot)).profile_color
+        except NotAPlayerError:
             if ctx.guild: clr = ctx.guild.me.color
             else: clr = discord.Color.dark_gray()
         latest_message, = [message async for message in channel.history(limit=1)]
         embed = discord.Embed(title="EconomyX News", description=f"{latest_message.content}\n\n[Jump to message]({latest_message.jump_url})  |  [Can't see message? Join support server](https://discord.gg/epQZEp933x)", color=clr)
         isdev = "(Developer) " if latest_message.author.id == OWNER_ID else ""
-        embed.set_footer(text=f"Set by {isdev}{str(latest_message.author)}, {humanize.precisedelta(latest_message.created_at.replace(tzinfo=None))} ago", icon_url=latest_message.author.avatar.url)
+        embed.set_footer(text=f"Set by {isdev}{str(latest_message.author)}, {humanize.precisedelta(latest_message.created_at.astimezone().replace(tzinfo=None))} ago", icon_url=latest_message.author.avatar.url)
         await ctx.send(embed=embed)
 
         

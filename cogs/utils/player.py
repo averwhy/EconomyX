@@ -73,6 +73,12 @@ class player:
         await self.bot.db.execute("UPDATE e_users SET bal = (bal + ?) WHERE id = ?",(amount, to.id))
         await self.bot.db.commit()
 
+    async def get_job_data(self):
+        """Gets job data because i havent written a class for it yet"""
+        cur = await self.bot.db.execute("SELECT * FROM e_jobs WHERE id = ?", (self.id,))
+        data = await cur.fetchone()
+        return data
+
     @staticmethod
     async def create(bot, member_object):
         """Adds the user to the database.
