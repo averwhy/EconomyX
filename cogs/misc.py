@@ -180,11 +180,10 @@ class misc(commands.Cog):
     @commands.command()
     async def uptime(self, ctx):
         """Shows the uptime for EconomyX"""
-        delta_uptime = discord.utils.utcnow() - self.bot.launch_time
-        hours, remainder = divmod(int(delta_uptime.total_seconds()), 3600)
-        minutes, seconds = divmod(remainder, 60)
-        days, hours = divmod(hours, 24)
-        await ctx.send(f"```autohotkey\n{days}d, {hours}h, {minutes}m, {seconds}s\n```")
+        self.bot.launch_time
+        relative = discord.utils.format_dt(self.bot.launch_time, "R")
+        full = discord.utils.format_dt(self.bot.launch_time, "F")
+        await ctx.send(f"{full} / {relative}")
         
     @commands.command()
     async def ping(self, ctx):
