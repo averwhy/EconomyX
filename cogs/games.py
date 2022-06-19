@@ -28,6 +28,8 @@ class games(commands.Cog):
     async def bet(self, ctx, amount):
         player = await Player.get(ctx.author.id, self.bot)
         player.validate_bet(amount)
+        if isinstance(amount, str) and amount.strip() == "all":
+            amount = player.bal
         
         y = random.choice([True,False])
         if y:
@@ -142,10 +144,10 @@ class games(commands.Cog):
     @commands.command(aliases=['bj'], enabled=True)
     async def blackjack(self, ctx, amount):
         """Blackjack card game.
-        This has minor changes to work to EconomyX.
+        This has minor changes to work with EconomyX.
         
         The basic premise of the game is the player is dealt 2 cards. The dealer also has 2 cards, however, one is hidden. The goal of the game is to get a combined total of 21 or as close to it as possible. Then player can win when:
-        - They have a higher card value total than the dealer.
+        - They have a higher card value total than the dealer, but not higher than 21.
         - They have a card value total of 21.
         - The dealer 'busts' (obtains a card total higher than 21) when drawing another card.
         
@@ -155,6 +157,8 @@ class games(commands.Cog):
         
         player = await Player.get(ctx.author.id, self.bot)
         player.validate_bet(amount, minimum=10)
+        if isinstance(amount, str) and amount.strip() == "all":
+            amount = player.bal
         
         bjview = Blackjack(self.bot, ctx.author, amount) # This view does all the work :)
         embed = discord.Embed(title="Blackjack")
@@ -162,13 +166,15 @@ class games(commands.Cog):
         embed.add_field(name="Dealer cards", value=f"?, {bjview.dealer_cards[1]} ({bjview.dealer_hidden_total})", inline=False)
         file = discord.File("./cogs/assets/cards-clipart.png", filename="cards.png")
         embed.set_thumbnail(url="attachment://cards.png")
-        await ctx.send(file=file, embed=embed, view=bjview)
+        game_message = await ctx.send(file=file, embed=embed, view=bjview)
         if bjview.player_total == 21:
             await bjview.blackjack(ctx.message)
         if bjview.player_total >= 22:
             await bjview.lose()
         if await bjview.wait():
-            await ctx.message.delete()
+            try: await game_message.delete()
+            except discord.NotFound: pass # it wouldnt be a forbidden error, since its the bot's own message. it could only
+            # be a not found if the message was already deleted before it timed out
             await ctx.send(f"{ctx.author.mention}, your blackjack game timed out.")
         
 

@@ -217,7 +217,7 @@ bot.initial_extensions = ["jishaku","cogs.player_meta","cogs.devtools","cogs.gam
 with open("TOKEN.txt",'r') as t:
     TOKEN = t.readline()
 bot.time_started = time.localtime()
-bot.version = '0.5.0'
+bot.version = '0.5.1'
 bot.newstext = None
 bot.news_set_by = "no one yet.."
 bot.total_command_errors = 0
@@ -284,8 +284,8 @@ async def maintenance_mode(ctx):
 @bot.event
 async def on_command_error(ctx, error): # this is an event that runs when there is an error
     if isinstance(error, MaintenenceActive):
-        embed = discord.Embed(description="Sorry, but maintenance mode is active. EconomyX will be back soon!",color=discord.Color(0xffff00))
-        await ctx.send(embed=embed, delete_after=60)
+        embed = discord.Embed(description=f"Sorry, but maintenance mode is active. EconomyX will be back soon!\nCheck `{ctx.clean_prefix}news` to see if there is any updates.",color=discord.Color(0xffff00))
+        await ctx.send(embed=embed)
     if isinstance(error, discord.ext.commands.errors.CommandNotFound):      
         return
     elif isinstance(error, NotAPlayerError):

@@ -4,3 +4,8 @@ nohup.out
 *.db-journal
 *.db
 WEBHOOK.txt
+/bin/
+*.cfg
+/lib/
+lib64
+/include/

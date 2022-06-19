@@ -111,10 +111,12 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
         if not stock:
             return await ctx.send("I couldn't find that stock, check the name or ID again. Note: Names are case sensitive.")
         embed = discord.Embed(title=f"{stock[1]}", description=f"ID: {stock[0]}")
-        tl = self.bot.utc_calc(stock[5])
-        embed.add_field(name="Stock Created",value=f"{tl} ago")
+        tl1 = self.bot.utc_calc(stock[5], type="R")
+        tl2 = self.bot.utc_calc(stock[5], type="F")
+        embed.add_field(name="Stock Created",value=f"{tl2} / {tl1}")
         upordown = "UP" if stock[3] < stock[2] else "DOWN"
         embed.add_field(name="Stock Points",value=f"`{round(stock[2],1)}`, {upordown} from `{round(stock[3],1)}` points")
+        embed.add_field(name="Owner", value=f"<@{stock[4]}>", inline=False)
         if str(stock[6]).startswith("http"):
             embed.set_thumbnail(url=stock[6])
         await ctx.send(embed=embed)

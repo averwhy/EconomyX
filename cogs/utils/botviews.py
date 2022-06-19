@@ -1,10 +1,7 @@
 from typing import Union
-from email import message
-from http.client import INSUFFICIENT_STORAGE
-from typing import Optional
 import discord, random, asyncio
 from discord.ext import commands
-
+from . import player as Player
 # class Hit(discord.ui.Button):
 #     def __init__(self):
 #         super().__init__(label='Hit', style=discord.ButtonStyle.green, disabled=False)
@@ -78,6 +75,7 @@ class Blackjack(discord.ui.View):
     async def win(self, interaction: Union[discord.Interaction, commands.Context], button_clicked: int, player_msg: str = "", dealer_msg: str = ""):
         if isinstance(interaction, commands.Context): user = interaction.author
         else: user = interaction.user
+        player = await Player.get(user.id, self.bot)
         embed = interaction.message.embeds[0]
         embed.color = discord.Color.green()
         embed.set_footer(text=f"You won ${self.amount}!")
@@ -86,12 +84,13 @@ class Blackjack(discord.ui.View):
         self.disable_all()
         self.children.pop(2)
         self.style_button(button_clicked, discord.ButtonStyle.success)
-        await self.bot.update_balance(user, amount=self.amount)
+        await player.update_balance(self.amount)
         await interaction.message.edit(content=f"{str(self.owner)} won!", attachments=[], embed=embed, view=self)
     
     async def lose(self, interaction: discord.Interaction, button_clicked: int, player_msg: str = "", dealer_msg: str = ""):
         if isinstance(interaction, commands.Context): user = interaction.author
         else: user = interaction.user
+        player = await Player.get(user.id, self.bot)
         embed = interaction.message.embeds[0]
         embed.color = discord.Color.red()
         embed.set_footer(text=f"You lost ${self.amount}.")
@@ -100,7 +99,7 @@ class Blackjack(discord.ui.View):
         self.disable_all()
         self.children.pop(2)
         self.style_button(button_clicked, discord.ButtonStyle.success)
-        await self.bot.update_balance(interaction.user, amount=0-self.amount)
+        await player.update_balance(self.amount)
         await interaction.message.edit(content=f"{str(self.owner)} lost.", attachments=[], embed=embed, view=self)
     
     async def push(self, interaction: discord.Interaction, button_clicked: int, player_msg: str = "", dealer_msg: str = ""):
@@ -137,7 +136,7 @@ class Blackjack(discord.ui.View):
             iter += 1
 
     @discord.ui.button(label='Hit', style=discord.ButtonStyle.primary)
-    async def hit(self, button: discord.ui.Button, interaction: discord.Interaction):
+    async def hit(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.owner.id: return await interaction.response.send_message("This isn't your game of Blackjack.", ephemeral=True)
         newcard = random.choice(list(self.values.keys()))
         self.player_cards.append(newcard)
@@ -160,7 +159,7 @@ class Blackjack(discord.ui.View):
         return
     
     @discord.ui.button(label='Stand', style=discord.ButtonStyle.primary)
-    async def stand(self, button: discord.ui.Button, interaction: discord.Interaction):
+    async def stand(self, interaction: discord.Interaction, button: discord.ui.Button,):
         if interaction.user.id != self.owner.id: return await interaction.response.send_message("This isn't your game of Blackjack.", ephemeral=True)
         if self.dealer_total >= 17 and self.dealer_total < 21:
             #dealer stands
@@ -174,6 +173,8 @@ class Blackjack(discord.ui.View):
                 self.stop()
             elif self.player_total == self.dealer_total:
                 await interaction.response.send_message(f"You stood. The dealer's hidden card was a {self.dealer_cards[0]}, making their total {self.dealer_total}.\nPush! No one won.", ephemeral=True)
+                await self.push(interaction, 1, dealer_msg='**Push!**', player_msg='**Push!**')
+                self.stop()
         
         elif self.dealer_total > 21:
             #dealer instant bust

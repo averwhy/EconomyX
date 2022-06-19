@@ -39,13 +39,13 @@ class money_meta(commands.Cog):
                 player = await Player.get(ctx.author.id, self.bot)
             except NotAPlayerError:
                 return await ctx.send("That player doesn't seem to have a profile.")
-            await ctx.send(f"{str(ctx.author)}'s balance: ${player.balance[3]}")
+            await ctx.send(f"{str(ctx.author)}'s balance: ${player.balance}")
         if user is not None:
             try:
                 player = await Player.get(user.id, self.bot)
             except NotAPlayerError:
                 return await ctx.send("That player doesn't seem to have a profile.")
-            await ctx.send(f"{str(user)}'s balance: ${player[3]}")
+            await ctx.send(f"{str(user)}'s balance: ${player.balance}")
             
     @commands.cooldown(1,10,BucketType.user)
     @commands.command()

@@ -55,6 +55,7 @@ class player:
         """Updates player balance. 
         `amount` can be positive or negative.
         This will automatically add to total earnings."""
+        amount = int(amount)
         temp = self.bal
         temp += amount
         if temp < 0:
