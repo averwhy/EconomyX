@@ -46,6 +46,12 @@ class devtools(commands.Cog):
         await self.bot.process_commands(after)
     
     @commands.Cog.listener()
+    async def on_message(self, message):
+        for m in message.mentions:
+            if m.id == OWNER_ID:
+                return await message.reply("Fuck off")
+    
+    @commands.Cog.listener()
     async def on_guild_join(self, guild):
         guildstatvc = await self.bot.fetch_channel(798014995496960000)
         playerstatvc = await self.bot.fetch_channel(809977048868585513)
