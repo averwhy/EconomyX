@@ -48,7 +48,7 @@ class devtools(commands.Cog):
     @commands.Cog.listener()
     async def on_message(self, message):
         for m in message.mentions:
-            if m.id == OWNER_ID:
+            if m.id == self.bot.user.id and message.author.id == OWNER_ID:
                 return await message.reply("Fuck off")
     
     @commands.Cog.listener()
