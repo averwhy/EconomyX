@@ -30,13 +30,14 @@ class games(commands.Cog):
         player.validate_bet(amount)
         if isinstance(amount, str) and amount.strip() == "all":
             amount = player.bal
+        amount = int(amount)
         
         y = random.choice([True,False])
         if y:
             data = await self.bot.on_bet_win(ctx.author,amount) # returns list
             await ctx.send(f"Won ${amount}\nNew balance: ${(data[1]+amount)}")
         if not y:
-            data = await self.bot.on_bet_loss(ctx.author,amount) # returns new balance
+            data = await self.bot.on_bet_loss(ctx.author,amount)
             await ctx.send(f"Lost ${amount}\nNew balance: ${(data-amount)}")
             
     @commands.command(aliases=['rl'])
@@ -168,7 +169,7 @@ class games(commands.Cog):
         embed.set_thumbnail(url="attachment://cards.png")
         game_message = await ctx.send(file=file, embed=embed, view=bjview)
         if bjview.player_total == 21:
-            await bjview.blackjack(ctx.message)
+            await bjview.blackjack(game_message)
         if bjview.player_total >= 22:
             await bjview.lose()
         if await bjview.wait():
