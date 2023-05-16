@@ -14,7 +14,7 @@ class money_meta(commands.Cog):
     
     @commands.cooldown(1,30,BucketType.user)
     @commands.command(aliases=["payuser"])
-    async def pay(self, ctx, user: discord.User, amount):
+    async def pay(self, ctx, user: discord.User, amount: int):
         player = await Player.get(ctx.author.id, self.bot)
         player.validate_bet(amount)
         if player.balance < amount:

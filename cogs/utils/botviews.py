@@ -99,7 +99,7 @@ class Blackjack(discord.ui.View):
         self.disable_all()
         self.children.pop(2)
         self.style_button(button_clicked, discord.ButtonStyle.success)
-        await player.update_balance(self.amount)
+        await player.update_balance(0 - self.amount)
         await interaction.message.edit(content=f"{str(self.owner)} lost.", attachments=[], embed=embed, view=self)
     
     async def push(self, interaction: discord.Interaction, button_clicked: int, player_msg: str = "", dealer_msg: str = ""):
