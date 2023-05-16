@@ -14,3 +14,6 @@ class BlacklistedChannelError(commands.CommandError):
 
 class BlacklistedUserError(commands.CommandError):
     pass
+
+class UnloadedError(commands.CommandError):
+    pass

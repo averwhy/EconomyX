@@ -8,7 +8,7 @@ import typing
 import humanize
 from discord.ext import commands
 from datetime import datetime, timezone
-from cogs.utils.errors import InvalidBetAmountError, NotAPlayerError
+from cogs.utils.errors import InvalidBetAmountError, NotAPlayerError, UnloadedError
 from cogs.utils.player import player as Player
 from dateutil import parser
 
@@ -208,6 +208,13 @@ class EcoBot(commands.Bot):
         days, hours = divmod(hours, 24)
         return [days, hours, minutes, seconds]
 
+    async def award_achievement(self, user: int, achievement: int):
+        """Awards achievement to specified user"""
+        try: bot.get_cog('achievements')
+        except: raise UnloadedError("Cog `achievements` is unloaded"); return
+
+        player = await bot.get_player(user)
+
 async def get_prefix(bot, message):
     return bot.prefixes.get(message.author.id, bot.default_prefix)
               
@@ -231,14 +238,17 @@ async def startup():
     bot.db = await aiosqlite.connect('economyx.db')
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_users (id int, name text, guildid int, bal int, totalearnings int, profilecolor text, lotterieswon int)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_prefixes (userid int, prefix blob, setwhen blob)")
+    #await bot.db.execute("CREATE TABLE IF NOT EXISTS e_stats (userid int, commandsrun int, gamesplayed int, )")
     print("Database connected")
     
     cur = await bot.db.execute("SELECT userid, prefix FROM e_prefixes")
     bot.prefixes = {user_id: prefix for user_id, prefix in (await cur.fetchall())}
 
     bot.backup_db = await aiosqlite.connect('ecox_backup.db')
-    print("Backup database is ready")
+    print("Backup database is ready") # actual backing up is done in devtools cog
     await bot.backup_db.close()
+
+    bot.previous_balance_cache = {}
 
     success = failed = 0
     for cog in bot.initial_extensions:

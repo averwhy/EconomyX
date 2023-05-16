@@ -2,6 +2,7 @@ import discord
 import re
 import random
 import asyncio
+import aiosqlite
 from discord.ext import commands
 from discord.ext import tasks
 from datetime import datetime
@@ -84,8 +85,12 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
         player = await Player.get(ctx.author.id, self.bot)
         cur = await self.bot.db.execute("SELECT * FROM e_stocks ORDER BY points DESC;")
         allstocks = await cur.fetchall()
-        cur = await self.bot.db.execute("SELECT SUM(invested) FROM e_invests")
-        total_invested = await cur.fetchone()
+        try:
+            cur = await self.bot.db.execute("SELECT SUM(invested) FROM e_invests")
+            total_invested = await cur.fetchone()
+        except aiosqlite.OperationalError:
+            return await ctx.send("An internal error occured while attempting to calculate the total amount invested into stocks")
+
         cur = await self.bot.db.execute("SELECT SUM(points) FROM e_stocks")
         total_points = await cur.fetchone()
         embed = discord.Embed(

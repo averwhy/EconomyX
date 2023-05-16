@@ -62,7 +62,7 @@ class player:
             del temp
             raise errors.BalanceUpdateError(f"New balance cannot be negative ({self.bal} < 0)")
         self.bal += amount
-        
+        self.bot.previous_balance_cache[self.id] = amount # set previous balance in cache, helps with achievements
         await self.bot.db.execute("UPDATE e_users SET bal = (bal + ?) WHERE id = ?",(amount, self.id))
         await self.bot.db.execute("UPDATE e_users SET totalearnings = (totalearnings + ?) WHERE id = ?", (amount, self.id))
         await self.bot.db.commit()
