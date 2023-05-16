@@ -107,7 +107,7 @@ class jobs(commands.Cog):
             lasthours = ?
             WHERE id = ?
         """, (xp, new_level, discord.utils.utcnow(), hours, player.id,))
-        await player.update_balance(pay)
+        await player.update_balance(pay * hours)
         await self.bot.db.commit()
         
 
