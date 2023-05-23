@@ -239,7 +239,7 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
         """The base command for investments.
         Invoking `invest` without a subcommand allows you to invest in stocks."""
         player = await Player.get(ctx.author.id, self.bot)
-        player.validate_bet(amount)
+        amount = player.validate_bet(amount, max=100000)
         stock = await self.bot.get_stock(name_or_id)
         if stock is None:
             await ctx.send("I couldn't find that stock. Double check the name/ID.")

@@ -1,7 +1,8 @@
 from __future__ import annotations
 import typing
 from . import errors
-
+import discord
+from discord.ext import commands
 async def get(id: int, bot):
     return await player(id, bot).__ainit__()
 
@@ -32,7 +33,8 @@ class player:
     def profile_color(self):
         return int(("0x" + (self.raw_data[5]).strip()), 0)
 
-    def validate_bet(self, amount: typing.Union[int, str], minimum: int = 1, allow_all: bool = True):
+
+    def validate_bet(self, amount: typing.Union[int, str], minimum: int = 1, allow_all: bool = True, max: int = -1):
         """Validates a players bet to ensure that the player can't bet too much or too little money."""
         if allow_all:
             if isinstance(amount, str) and amount.strip() == "all":
@@ -43,7 +45,12 @@ class player:
         if self.balance < amount:
             raise errors.InvalidBetAmountError(f"That bet is too big. You only have ${self.balance}.")
         if amount < minimum:
-            raise errors.InvalidBetAmountError(f"Too small of a bet. (Minimum {minimum})")
+            raise errors.InvalidBetAmountError(f"Too small of a bet. (Minimum ${minimum})")
+        if max != -1: # There is max
+            if amount > max:
+                raise errors.InvalidBetAmountError(f"Too large of a bet. (Maximum ${max})")
+        return amount
+            
 
     async def refresh(self):
         """Gives you a new object with updated data from database."""
@@ -51,7 +58,7 @@ class player:
         new_data = await cur.fetchone()
         return player(new_data, self.bot)
 
-    async def update_balance(self, amount: int):
+    async def update_balance(self, amount: int, ctx: typing.Union[commands.Context, discord.Interaction]):
         """Updates player balance. 
         `amount` can be positive or negative.
         This will automatically add to total earnings."""
@@ -66,6 +73,15 @@ class player:
         await self.bot.db.execute("UPDATE e_users SET bal = (bal + ?) WHERE id = ?",(amount, self.id))
         await self.bot.db.execute("UPDATE e_users SET totalearnings = (totalearnings + ?) WHERE id = ?", (amount, self.id))
         await self.bot.db.commit()
+        author = None
+        command = ctx.command
+        if isinstance(ctx, discord.Interaction):
+            author = ctx.user
+        else:
+            author = ctx.author
+        i_or_d = "increased" if amount > 0 else "decreased"
+        now = discord.utils.utcnow()
+        print(f"[{now}] {author} ({author.id}) balance {i_or_d} by {amount} with command '{command.name}'")
 
     async def transfer_money(self, amount: int, to: player):
         """Transfers money from one player to another. Automatically refreshes both objects.
@@ -73,6 +89,8 @@ class player:
         await self.bot.db.execute("UPDATE e_users SET bal = (bal - ?) WHERE id = ?",(amount, self.id))
         await self.bot.db.execute("UPDATE e_users SET bal = (bal + ?) WHERE id = ?",(amount, to.id))
         await self.bot.db.commit()
+        now = discord.utils.utcnow()
+        print(f"[{now}] {to.name} ({to.id}) was paid by {self.name} ({self.id}); recieving players balance is now {to.balance + amount} (was {to.balance})")
 
     async def get_job_data(self):
         """Gets job data because i havent written a class for it yet"""

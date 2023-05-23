@@ -16,7 +16,7 @@ class money_meta(commands.Cog):
     @commands.command(aliases=["payuser"])
     async def pay(self, ctx, user: discord.User, amount: int):
         player = await Player.get(ctx.author.id, self.bot)
-        player.validate_bet(amount)
+        amount = player.validate_bet(amount, max=100000)
         if player.balance < amount:
             await ctx.send(f"You cant pay them that much. You only have ${player.balance}.")
             return

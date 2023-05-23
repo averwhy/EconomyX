@@ -27,24 +27,20 @@ class games(commands.Cog):
     @commands.command(aliases=["b"], description="Bets money. There is a 50/50 chance on winning and losing.")
     async def bet(self, ctx, amount):
         player = await Player.get(ctx.author.id, self.bot)
-        player.validate_bet(amount)
-        if isinstance(amount, str) and amount.strip() == "all":
-            amount = player.bal
-        amount = int(amount)
+        amount = player.validate_bet(amount, max=10000)
         
         y = random.choice([True,False])
-        if y:
-            data = await self.bot.on_bet_win(ctx.author,amount) # returns list
-            await ctx.send(f"Won ${amount}\nNew balance: ${(data[1]+amount)}")
         if not y:
-            data = await self.bot.on_bet_loss(ctx.author,amount)
-            await ctx.send(f"Lost ${amount}\nNew balance: ${(data-amount)}")
+            amount *= -1
+
+        await player.update_balance(amount, ctx)
+        await ctx.send(f"You {['lost', 'won'][y]} ${amount}, new balance: {player.balance + amount}")
             
     @commands.command(aliases=['rl'])
     async def roulette(self, ctx, amount):
         """Roulette gambling command. Starts a propmpt in which the user reacts with the color they wish to bet."""
         player = await Player.get(ctx.author.id, self.bot)
-        player.validate_bet(amount)
+        amount = player.validate_bet(amount, max=10000)
         
         confirm = await ctx.send("Choose one of the 3 colors to bet on `(🔴: 2x, ⚫: 2x, 🟢: 35x)`:")
         rlist = ['🔴', '⚫', '🟢', '❌']
@@ -63,15 +59,13 @@ class games(commands.Cog):
             return await ctx.reply("Cancelled, you did not lose/gain any money.")
         if result[0] == rlist[2]: # green
             newamount = amount * 35
-            await self.bot.db.execute("UPDATE e_users SET bal = (bal + ?) WHERE id = ?",(newamount, ctx.author.id,))
-            await self.bot.db.execute("UPDATE e_users SET totalearnings = (totalearnings + ?) WHERE id = ?",(newamount, ctx.author.id,))
+            await player.update_balance(newamount, ctx)
             return await ctx.send(f"Your choice: {str(reaction.emoji)}, result: {str(result[0])}\n**You won BIG!**\nMoney earned: ${int(amount * 35)} (`${int(amount)} x 35`)")
         elif reaction.emoji == result[0]:
-            await self.bot.db.execute("UPDATE e_users SET bal = (bal + ?) WHERE id = ?",(amount, ctx.author.id,))
-            await self.bot.db.execute("UPDATE e_users SET totalearnings = (totalearnings + ?) WHERE id = ?",(amount, ctx.author.id,))
+            await player.update_balance(amount, ctx)
             return await ctx.send(f"Your choice: {str(reaction.emoji)}, result: {str(result[0])}\n**You won!**\nMoney earned: ${int(amount)}")
         else:
-            await self.bot.db.execute("UPDATE e_users SET bal = (bal - ?) WHERE id = ?",(amount, ctx.author.id,))
+            await player.update_balance((0-amount), ctx)
             return await ctx.send(f"Your choice: {str(reaction.emoji)}, result: {str(result[0])}\n**You lost.**\nMoney lost: ${int(amount)}")
         
     
@@ -79,7 +73,7 @@ class games(commands.Cog):
     async def rockpaperscissors(self, ctx, amount, choice):
         """Rock paper scissor game. `amount` is money you want to bet, and choice must be `rock`, `paper`, or `scissor` (singular, no 's)"""
         player = await Player.get(ctx.author.id, self.bot)
-        player.validate_bet(amount)
+        amount = player.validate_bet(amount, max=10000)
         rand = random.randint(0,2)
         summary = ""
         choices = ["paper", "scissor", "rock"]
@@ -92,11 +86,10 @@ class games(commands.Cog):
             summary += "You lost no money."
         elif outcome_list[rand] == "lose":
             summary += f"You lost ${amount}."
-            await self.bot.db.execute("UPDATE e_users SET bal = (bal - ?) WHERE id = ?",(amount, ctx.author.id,))
+            await player.update_balance((0-amount), ctx)
         elif outcome_list[rand] == "win":
             summary += f"You won ${amount}"
-            await self.bot.db.execute("UPDATE e_users SET bal = (bal + ?) WHERE id = ?",(amount, ctx.author.id,))
-            await self.bot.db.execute("UPDATE e_users SET totalearnings = (totalearnings + ?) WHERE id = ?",(amount, ctx.author.id,))
+            await player.update_balance(amount, ctx=ctx)
         await ctx.reply(summary)
             
 
@@ -105,7 +98,7 @@ class games(commands.Cog):
     async def guess(self, ctx, amount: int):
         """Guesing game with money. You have 5 chances to guess the number randomly chosen between 1-10.\nThis amounts to a 50/50 chance."""
         player = await Player.get(ctx.author.id, self.bot)
-        player.validate_bet(amount)
+        amount = player.validate_bet(amount, max=10000)
         
         await ctx.send(f"Alright, your bet is ${amount}. If you lose, you pay that. If you win, you earn that.\nI'm thinking of a number between 1 and 10. You have 5 tries.")
         tries = 5
@@ -123,14 +116,13 @@ class games(commands.Cog):
                     continue
                 if content == the_number:
                     await ctx.send(f"You guessed it! The number was {the_number}.\nAs promised, here's your winnings of ${amount}.")
-                    await self.bot.db.execute("UPDATE e_users SET bal = (bal + ?) WHERE id = ?",(amount, ctx.author.id,))
-                    await self.bot.db.execute("UPDATE e_users SET totalearnings = (totalearnings + ?) WHERE id = ?",(amount,ctx.author.id,))
+                    await player.update_balance(amount, ctx)
                     return
                 else:
                     tries -= 1
                     if tries == 0:
                         await ctx.send(f"You're out of tries, and haven't guessed my number.\nYou lose ${amount}.")
-                        await self.bot.db.execute("UPDATE e_users SET bal = (bal - ?) WHERE id = ?",(amount, ctx.author.id,))
+                        await player.update_balance((0-amount), ctx)
                         return
                     await ctx.send(f"That's not it!\nYou have {tries} attempt(s) left.")
             except:
@@ -157,9 +149,7 @@ class games(commands.Cog):
         from .utils.botviews import Blackjack
         
         player = await Player.get(ctx.author.id, self.bot)
-        player.validate_bet(amount, minimum=10)
-        if isinstance(amount, str) and amount.strip() == "all":
-            amount = player.bal
+        amount = player.validate_bet(amount, minimum=10, max=10000)
         
         bjview = Blackjack(self.bot, ctx.author, amount) # This view does all the work :)
         embed = discord.Embed(title="Blackjack")
@@ -187,7 +177,7 @@ class games(commands.Cog):
         - Roll a 2, 3 or 12 and you lose.
         - Roll a 4-6 or 8-10, re-roll until you either roll a 7 and lose, or roll your original roll and win 2x your bet."""
         player = await Player.get(ctx.author.id, self.bot)
-        player.validate_bet(amount, minimum=10)
+        amount = player.validate_bet(amount, minimum=10, max=10000)
         dice1 = random.randrange(1,6)
         dice2 = random.randrange(1,6)
         dices = dice1 + dice2
@@ -195,7 +185,7 @@ class games(commands.Cog):
 
         async def win(amount:int, dice_1, dice_2, main_message) -> None:
             nonlocal ctx
-            await ctx.bot.update_balance(ctx.author, amount=amount)
+            await player.update_balance(amount, ctx=ctx)
             try: updated_embed = main_message.embeds[0]
             except (ReferenceError, AttributeError):
                 updated_embed = discord.Embed(title="Craps", description="").set_footer(text=f"Amount bet: {amount} | Rolls: {rolls}")
@@ -210,7 +200,7 @@ class games(commands.Cog):
             return
         async def loss(amount: int, dice_1, dice_2, main_message) -> None:
             nonlocal ctx
-            await ctx.bot.update_balance(ctx.author, amount=0-amount)
+            await player.update_balance((0-amount), ctx=ctx)
             try: updated_embed = main_message.embeds[0]
             except (ReferenceError, AttributeError):
                 updated_embed = discord.Embed(title="Craps", description="").set_footer(text=f"Amount bet: {amount} | Rolls: {rolls}")

@@ -16,7 +16,7 @@ class Blackjack(discord.ui.View):
         self.value = None
         self.player_cards = random.choices(list(values.keys()), k=2)
         self.dealer_cards = random.choices(list(values.keys()), k=2)
-        self.amount = bet_amount
+        self.amount = int(bet_amount)
         self.owner = owner
         self.player_total = 0
         self.dealer_total = 0
@@ -41,7 +41,6 @@ class Blackjack(discord.ui.View):
             iter += 1
 
     def readable_player_cards(self) -> str:
-        print(self.player_cards)
         to_return = ""
         last_one = len(self.player_cards)
         iter = 0
@@ -54,7 +53,6 @@ class Blackjack(discord.ui.View):
         return to_return
     
     def readable_dealer_cards(self) -> str:
-        print(self.dealer_cards)
         to_return = ""
         last_one = len(self.dealer_cards)
         iter = 0
@@ -84,23 +82,27 @@ class Blackjack(discord.ui.View):
         self.disable_all()
         self.children.pop(2)
         self.style_button(button_clicked, discord.ButtonStyle.success)
-        await player.update_balance(self.amount)
+        await player.update_balance(self.amount, ctx=interaction)
         await interaction.message.edit(content=f"{str(self.owner)} won!", attachments=[], embed=embed, view=self)
     
     async def lose(self, interaction: discord.Interaction, button_clicked: int, player_msg: str = "", dealer_msg: str = ""):
-        if isinstance(interaction, commands.Context): user = interaction.author
-        else: user = interaction.user
-        player = await Player.get(user.id, self.bot)
-        embed = interaction.message.embeds[0]
-        embed.color = discord.Color.red()
-        embed.set_footer(text=f"You lost ${self.amount}.")
-        embed.set_field_at(0, name="Player cards", value=f"{self.player_cards[0]}, {self.player_cards[1]} ({self.player_total}) {player_msg}")
-        embed.set_field_at(1, name="Dealer cards", value=f"{self.dealer_cards[0]}, {self.dealer_cards[1]} ({self.dealer_total}) {dealer_msg}", inline=False)
-        self.disable_all()
-        self.children.pop(2)
-        self.style_button(button_clicked, discord.ButtonStyle.success)
-        await player.update_balance(0 - self.amount)
-        await interaction.message.edit(content=f"{str(self.owner)} lost.", attachments=[], embed=embed, view=self)
+        try:
+            if isinstance(interaction, commands.Context): user = interaction.author
+            else: user = interaction.user
+            player = await Player.get(user.id, self.bot)
+            embed = interaction.message.embeds[0]
+            embed.color = discord.Color.red()
+            embed.set_footer(text=f"You lost ${self.amount}.")
+            embed.set_field_at(0, name="Player cards", value=f"{self.player_cards[0]}, {self.player_cards[1]} ({self.player_total}) {player_msg}")
+            embed.set_field_at(1, name="Dealer cards", value=f"{self.dealer_cards[0]}, {self.dealer_cards[1]} ({self.dealer_total}) {dealer_msg}", inline=False)
+            self.disable_all()
+            self.children.pop(2)
+            self.style_button(button_clicked, discord.ButtonStyle.success)
+            await player.update_balance(0 - self.amount, ctx=interaction)
+            await interaction.message.edit(content=f"{str(self.owner)} lost.", attachments=[], embed=embed, view=self)
+        except Exception as e:
+            print(e)
+            print("massive error")
     
     async def push(self, interaction: discord.Interaction, button_clicked: int, player_msg: str = "", dealer_msg: str = ""):
         embed = interaction.message.embeds[0]

@@ -124,63 +124,6 @@ class EcoBot(commands.Bot):
         return data is not None
         # False = Not in database
         # True = In database
-        
-    async def on_bet_win(self,member_object,amount_bet):
-        """This is called when an user wins at the bet game."""
-        c = await bot.db.execute("SELECT * FROM e_users WHERE id = ?",(member_object.id,))
-        data = await c.fetchone()
-        if data is not None:
-            amount_won = amount_bet * 2
-            #update user
-            await bot.db.execute("UPDATE e_users SET bal = (bal + ?) WHERE id = ?",(amount_bet,member_object.id,))
-            await bot.db.execute("UPDATE e_users SET totalearnings = (totalearnings + ?) WHERE id = ?",(amount_bet,member_object.id,))
-            #get new data
-            c = await bot.db.execute("SELECT * FROM e_users WHERE id = ?",(member_object.id,))
-            await bot.db.commit()
-            data2 = await c.fetchone()
-            newbalance = float(data[3])
-            
-            return [amount_won,newbalance]
-        else:
-            return None
-        
-    async def on_bet_loss(self,member_object,amount_bet):
-        """This is called when an user loses at the bet game."""
-        c = await bot.db.execute("SELECT * FROM e_users WHERE id = ?",(member_object.id,))
-        data = await c.fetchone()
-        if data is not None:
-            amount_lost = amount_bet
-            #update user
-            await bot.db.execute("UPDATE e_users SET bal = (bal - ?) WHERE id = ?",(amount_bet,member_object.id,))
-            #get new data
-            c = await bot.db.execute("SELECT * FROM e_users WHERE id = ?",(member_object.id,))
-            await bot.db.commit()
-            data2 = await c.fetchone()
-            newbalance = float(data[3])
-            
-            return newbalance
-        else:
-            return None
-        
-    async def update_balance(self, userobj, **kwargs):
-        """Updates balance."""
-        
-        player = await Player.get(userobj.id, self.bot)
-        if player is None:
-            return False
-        amount = kwargs['amount'] # Required
-        try:
-            #Optional:
-            reason = kwargs['reason'] # str
-            id_override = kwargs['id_override'] # int
-            earned_update = kwargs['update_earned'] # bool
-        except KeyError:
-            pass
-        
-        await bot.db.execute("UPDATE e_users SET bal = (bal + ?) WHERE id = ?",(amount, userobj.id))
-        if amount > 0:
-            #They gained money, update total gained
-            await bot.db.execute("UPDATE e_users SET totalearnings = (totalearnings + ?) WHERE id = ?",(amount, userobj.id,))
     
     async def transfer_money(self,member_paying: typing.Union[discord.User, discord.Member] ,member_getting_paid: typing.Union[discord.User, discord.Member],amount):
         """Transfers money from one player to another."""

@@ -73,7 +73,7 @@ class jobs(commands.Cog):
         pass
 
     @commands.command(aliases=["w"])
-    async def work(self,ctx):
+    async def work(self, ctx):
         """Work. You work a random number of hours between 4-8. The cooldown for working is half the hours you've worked"""
         player = await Player.get(ctx.author.id, self.bot)
         hours = random.randint(4, 8)
@@ -107,7 +107,7 @@ class jobs(commands.Cog):
             lasthours = ?
             WHERE id = ?
         """, (xp, new_level, discord.utils.utcnow(), hours, player.id,))
-        await player.update_balance(pay * hours)
+        await player.update_balance(pay * hours, ctx=ctx)
         await self.bot.db.commit()
         
 
