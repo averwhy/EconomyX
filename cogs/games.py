@@ -34,7 +34,8 @@ class games(commands.Cog):
             amount *= -1
 
         await player.update_balance(amount, ctx)
-        await ctx.send(f"You {['lost', 'won'][y]} ${amount}, new balance: {player.balance + amount}")
+        if amount < 0: await self.bot.stats.add('totalbetLost', (abs(amount))) # adds to totalbetLost stat if amount is negative (player lost money)
+        await ctx.send(f"You {['lost', 'won'][y]} ${abs(amount)}, new balance: {player.balance + amount}")
             
     @commands.command(aliases=['rl'])
     async def roulette(self, ctx, amount):
@@ -66,6 +67,7 @@ class games(commands.Cog):
             return await ctx.send(f"Your choice: {str(reaction.emoji)}, result: {str(result[0])}\n**You won!**\nMoney earned: ${int(amount)}")
         else:
             await player.update_balance((0-amount), ctx)
+            await self.bot.stats.add('totalrouletteLost', (abs(amount))) # adds to totalrouletteLost stat
             return await ctx.send(f"Your choice: {str(reaction.emoji)}, result: {str(result[0])}\n**You lost.**\nMoney lost: ${int(amount)}")
         
     
@@ -87,6 +89,7 @@ class games(commands.Cog):
         elif outcome_list[rand] == "lose":
             summary += f"You lost ${amount}."
             await player.update_balance((0-amount), ctx)
+            await self.bot.stats.add('totalrpsLost', (abs(amount))) # adds to totalrpsLost stat
         elif outcome_list[rand] == "win":
             summary += f"You won ${amount}"
             await player.update_balance(amount, ctx=ctx)
@@ -123,6 +126,7 @@ class games(commands.Cog):
                     if tries == 0:
                         await ctx.send(f"You're out of tries, and haven't guessed my number.\nYou lose ${amount}.")
                         await player.update_balance((0-amount), ctx)
+                        await self.bot.stats.add('totalguessLost', (abs(amount))) # adds to totalguessLost stat
                         return
                     await ctx.send(f"That's not it!\nYou have {tries} attempt(s) left.")
             except:
@@ -201,6 +205,7 @@ class games(commands.Cog):
         async def loss(amount: int, dice_1, dice_2, main_message) -> None:
             nonlocal ctx
             await player.update_balance((0-amount), ctx=ctx)
+            await self.bot.stats.add('totalcrapsLost', (abs(amount))) # adds to totalcrapsLost stat
             try: updated_embed = main_message.embeds[0]
             except (ReferenceError, AttributeError):
                 updated_embed = discord.Embed(title="Craps", description="").set_footer(text=f"Amount bet: {amount} | Rolls: {rolls}")

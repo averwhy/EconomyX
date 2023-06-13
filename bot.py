@@ -178,7 +178,7 @@ bot.updates_channel = 798014940086403083
 bot.default_prefix = "e$"
 
 async def startup():
-    bot.db = await aiosqlite.connect('economyx.db')
+    bot.db = await aiosqlite.connect('economyx.db', timeout=10)
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_users (id int, name text, guildid int, bal int, totalearnings int, profilecolor text, lotterieswon int)")
     await bot.db.execute("CREATE TABLE IF NOT EXISTS e_prefixes (userid int, prefix blob, setwhen blob)")
     #await bot.db.execute("CREATE TABLE IF NOT EXISTS e_stats (userid int, commandsrun int, gamesplayed int, )")

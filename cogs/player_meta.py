@@ -34,6 +34,8 @@ class player_meta(commands.Cog):
         embed.add_field(name="Lotteries Won", value=f"{player.lotteries_won}",inline=False)
         embed.add_field(name="Job Stats", value=job_desc)
         embed.set_footer(text=f"EconomyX v{self.bot.version}",icon_url=self.bot.user.avatar.url)
+        await player.update_name(ctx.author.name)
+        await self.bot.stats.add('totalprofilesViewed')
         await ctx.send(embed=embed)
     
     @commands.cooldown(1,60,BucketType.user)

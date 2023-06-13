@@ -99,6 +99,7 @@ class Blackjack(discord.ui.View):
             self.children.pop(2)
             self.style_button(button_clicked, discord.ButtonStyle.success)
             await player.update_balance(0 - self.amount, ctx=interaction)
+            await self.bot.stats.add('totalbjLost', (abs(self.amount))) # adds to totalbjLost stat
             await interaction.message.edit(content=f"{str(self.owner)} lost.", attachments=[], embed=embed, view=self)
         except Exception as e:
             print(e)

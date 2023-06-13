@@ -27,6 +27,7 @@ class money_meta(commands.Cog):
         try:
             await self.bot.transfer_money(ctx.author,user,amount)
             await self.bot.db.execute("UPDATE e_users SET totalearnings = (totalearnings + ?) WHERE id = ?",(amount,user.id,))
+            await self.bot.stats.add('totalPaid', (abs(amount)))
             await ctx.reply("Transfer successful.")
         except Exception as e:
             await ctx.send(f"Something went wrong.\n{e}")

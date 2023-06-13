@@ -58,7 +58,7 @@ class player:
         new_data = await cur.fetchone()
         return player(new_data, self.bot)
 
-    async def update_balance(self, amount: int, ctx: typing.Union[commands.Context, discord.Interaction]):
+    async def update_balance(self, amount: int, ctx: typing.Union[commands.Context, discord.Interaction], ignore_total_earned: bool = False):
         """Updates player balance. 
         `amount` can be positive or negative.
         This will automatically add to total earnings."""
@@ -71,7 +71,8 @@ class player:
         self.bal += amount
         self.bot.previous_balance_cache[self.id] = amount # set previous balance in cache, helps with achievements
         await self.bot.db.execute("UPDATE e_users SET bal = (bal + ?) WHERE id = ?",(amount, self.id))
-        await self.bot.db.execute("UPDATE e_users SET totalearnings = (totalearnings + ?) WHERE id = ?", (amount, self.id))
+        if (not ignore_total_earned) or (amount < 0): # we dont want the total earnings to be the same as balance, so dont add negative amounts
+            await self.bot.db.execute("UPDATE e_users SET totalearnings = (totalearnings + ?) WHERE id = ?", (amount, self.id))
         await self.bot.db.commit()
         author = None
         command = ctx.command
@@ -97,6 +98,10 @@ class player:
         cur = await self.bot.db.execute("SELECT * FROM e_jobs WHERE id = ?", (self.id,))
         data = await cur.fetchone()
         return data
+    
+    async def update_name(self, name):
+        """Updates name because of username update"""
+        await self.bot.db.execute("UPDATE e_users SET name = ? WHERE id = ?", (name, self.id))
 
     @staticmethod
     async def create(bot, member_object):

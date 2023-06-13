@@ -67,6 +67,7 @@ class lottery(commands.Cog):
             await self.bot.db.execute("UPDATE e_users SET lotterieswon = (lotterieswon + 1) WHERE id = ?",(winningplayer[0],))
             await self.bot.db.execute("DELETE FROM e_lottery_users")
             await self.bot.db.execute("UPDATE e_lottery_main SET drawingnum = (drawingnum + 1)")
+            await self.bot.stats.add('totalLotteries')
             await self.reset_lottery_time() # it commits in here
         elif diff > 0:
             #Too soon, dont draw
@@ -107,7 +108,8 @@ class lottery(commands.Cog):
         drawingwhen = await c.fetchone()
         ts = self.bot.lottery_countdown_calc(drawingwhen[0])
         await self.bot.db.execute("INSERT INTO e_lottery_users VALUES (?, ?, ?)",(ctx.author.id, ctx.author.name, discord.utils.utcnow(),))
-        await self.bot.db.execute("UPDATE e_users SET bal = (bal - 100) WHERE id = ?",(ctx.author.id,))
+        await player.update_balance(-100, ctx=ctx)
+        await self.bot.stats.add('totalLotteries')
         await ctx.send(f"You bought a lottery ticket for $100. The next lottery drawing is in `{ts[1]}h, {ts[2]}m, {ts[3]}s`. I will DM you if you are picked.")
         
         
