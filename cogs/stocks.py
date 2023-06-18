@@ -25,7 +25,7 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
     async def cog_unload(self):
         self.main_stock_loop.cancel()
         
-    @tasks.loop(seconds=900)
+    @tasks.loop(seconds=600)
     async def main_stock_loop(self):
         await self.bot.wait_until_ready()
         c = await self.bot.db.execute("SELECT * FROM e_stocks")
@@ -33,14 +33,24 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
         for s in all_stocks:
             previous_amount = s[2]
             bruh = random.choice([True, False]) # true = add, false = subtract
-            amount = random.uniform(0.01,0.10)
+            amount = random.uniform(0.01,0.30)
             amount = round(amount,2)
             if bruh:
                 await self.bot.db.execute("UPDATE e_stocks SET points = (points + ?) WHERE stockid = ?",(amount, s[0]))
+                print((s[0]+amount))
+                if (s[0]+amount) >= 200:
+                    ach = self.bot.get_cog('achievements')
+                    if await ach.has_ach(s[4], 13):
+                        player = await self.bot.fetch_user(s[4])
+                        await ach.give_ach(player, 13)
             if not bruh:
                 cv = s[2] # current value
                 if (cv - amount) < 0.00:
                     amount = 0.00 # we dont want it to go negative
+                    ach = self.bot.get_cog('achievements')
+                    if await ach.has_ach(s[4], 14):
+                        player = await self.bot.fetch_user(s[4])
+                        await ach.give_ach(player, 14)
                 else:
                     await self.bot.db.execute("UPDATE e_stocks SET points = (points - ?) WHERE stockid = ?",(amount, s[0]))
             #then update previous amount for e$stock view 
@@ -319,8 +329,18 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
             if money_to_pay < 0: await self.bot.stats.add('totalinvestLost', (abs(money_to_pay))) # adds to totalinvestLost stat if amount is negative (player lost money)
             await self.bot.db.execute("DELETE FROM e_invests WHERE userid = ? AND stockid = ?",(ctx.author.id, name_or_id,))
             await self.bot.db.execute("DELETE FROM e_invests WHERE userid = ? AND stockname = ?",(ctx.author.id, name_or_id,))
-            try: await ctx.reply('👍')
-            except: await ctx.send('👍')     
+
+            await ctx.reply('👍')
+
+            ach = self.bot.get_cog('achievements')
+            if money_to_pay >= 1000:
+                if await ach.has_ach(ctx.author, 9):
+                    await ach.give_ach(ctx.author, 9)
+                    await ctx.reply(f"**Achievement get!** Day trader\n*See your achievements with {ctx.clean_prefix}achievements*")
+            if money_to_pay >= 100000:
+                if await ach.has_ach(ctx.author, 10):
+                    await ach.give_ach(ctx.author, 10)
+                    await ctx.reply(f"**Achievement get!** Wolf of Wall Street\n*See your achievements with {ctx.clean_prefix}achievements*")
         for r in msg.reactions: 
             try:await r.remove()
             except: pass

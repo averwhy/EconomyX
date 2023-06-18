@@ -12,7 +12,7 @@ class money_meta(commands.Cog):
     def __init__(self,bot):
         self.bot = bot
     
-    @commands.cooldown(1,30,BucketType.user)
+    @commands.cooldown(1,5,BucketType.user)
     @commands.command(aliases=["payuser"])
     async def pay(self, ctx, user: discord.User, amount: int):
         player = await Player.get(ctx.author.id, self.bot)
@@ -27,12 +27,12 @@ class money_meta(commands.Cog):
         try:
             await self.bot.transfer_money(ctx.author,user,amount)
             await self.bot.db.execute("UPDATE e_users SET totalearnings = (totalearnings + ?) WHERE id = ?",(amount,user.id,))
-            await self.bot.stats.add('totalPaid', (abs(amount)))
+            await self.bot.stats.user_add_paid(ctx.author, amount)
             await ctx.reply("Transfer successful.")
         except Exception as e:
             await ctx.send(f"Something went wrong.\n{e}")
             
-    @commands.cooldown(1,3,BucketType.user)
+    #@commands.cooldown(1,3,BucketType.user)
     @commands.command(aliases=["balance"])
     async def bal(self,ctx, user: discord.User = None):
         if user is None:

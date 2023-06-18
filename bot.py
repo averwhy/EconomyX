@@ -61,6 +61,7 @@ class EcoBot(commands.Bot):
         """Adds a player to the database"""
         try:
             await bot.db.execute("INSERT INTO e_users VALUES (?, ?, ?, 100, 0, 'FFFFFF', 0)",(member_object.id,member_object.name,member_object.guild.id,))
+            await bot.db.execute("INSERT INTO e_player_stats VALUES (?, 0, 0, 0, ?)", (member_object.id, discord.utils.utcnow()))
             await bot.db.commit()
             return f"Done! View your profile with `{self.default_prefix}profile`"
         except Exception as e:
@@ -87,7 +88,6 @@ class EcoBot(commands.Bot):
         """Gets a stock from the database. Takes a user/member object."""
         cur = await bot.db.execute("SELECT * FROM e_stocks WHERE ownerid = ?",(userid,))
         data = await cur.fetchone()
-        await bot.db.commit()
         return data
     
     async def begin_user_deletion(self, ctx, i_msg):
@@ -97,20 +97,25 @@ class EcoBot(commands.Bot):
         def check(m):
             return m.content.lower() == 'yes' and m.channel == ctx.channel and m.author == ctx.author
         await bot.wait_for('message', check=check)
-        msg = await ctx.send(
-        """**If you proceed, you will __permanently__ lose the following data:**
-            - Your profile (money, total earned amount, custom color, etc)
+        embed = discord.Embed(title='If you proceed, you will permanently lose the following data:', description="""**
+            - Your profile (money, total earned amount, lotteries won, etc)
+
             - Your invests (money invested, etc)
+
             - Any owned stock (The fee spent to create it, its points, etc (all investers get refunded))
-        *All* data involving you will be deleted.
-        **Are you sure you would like to continue?** ***__There is no going back.__***
-        """)
+
+            - All achievements you've earned**
+
+        \n*All* data involving you will be deleted.
+        \nAre you sure you would like to continue? **There is __no__ going back.**
+        """, color=discord.Color.red())
+        msg = await ctx.send(embed=embed)
         did_they = await self.prompt(ctx.author.id, msg, timeout=30, delete_after=False)
         if did_they:
             await bot.db.execute("DELETE FROM e_users WHERE id = ?",(ctx.author.id,))
             await bot.db.execute("DELETE FROM e_invests WHERE userid = ?",(ctx.author.id,))
             await bot.db.execute("DELETE FROM e_stocks WHERE ownerid = ?",(ctx.author.id,))
-            await ctx.send("Okay, it's done. According to my database, you no longer exist.\nThank you for using EconomyX. \U0001f5a4\U0001f90d")
+            await ctx.send("Okay, it's done. According to my database, you no longer exist.\nThank you for using EconomyX.")
         if not did_they:
             await ctx.send("Phew, canceled. None of your data was deleted.")
         if did_they is None: return
@@ -163,11 +168,11 @@ async def get_prefix(bot, message):
               
 bot = EcoBot(command_prefix=get_prefix,description=desc,intents=discord.Intents(reactions=True, messages=True, guilds=True, members=True, message_content=True))
 
-bot.initial_extensions = ["jishaku","cogs.player_meta","cogs.devtools","cogs.games","cogs.money_meta","cogs.misc","cogs.jobs","cogs.stocks","cogs.jsk_override", "cogs.lottery"]
+bot.initial_extensions = ["jishaku","cogs.player_meta","cogs.devtools","cogs.games","cogs.money_meta","cogs.misc","cogs.jobs","cogs.stocks","cogs.jsk_override", "cogs.lottery","cogs.stats","cogs.achievements"]
 with open("TOKEN.txt",'r') as t:
     TOKEN = t.readline()
 bot.time_started = time.localtime()
-bot.version = '0.5.1'
+bot.version = '0.8.0'
 bot.newstext = None
 bot.news_set_by = "no one yet.."
 bot.total_command_errors = 0
@@ -235,28 +240,18 @@ async def maintenance_mode(ctx):
     return True
     
 @bot.event
-async def on_command_error(ctx, error): # this is an event that runs when there is an error
+async def on_command_error(ctx, error): # this is an event that runs when there is an error in a command
     if isinstance(error, MaintenenceActive):
         embed = discord.Embed(description=f"Sorry, but maintenance mode is active. EconomyX will be back soon!\nCheck `{ctx.clean_prefix}news` to see if there is any updates.",color=discord.Color(0xffff00))
         await ctx.send(embed=embed)
-    if isinstance(error, discord.ext.commands.errors.CommandNotFound):      
+    elif isinstance(error, discord.ext.commands.errors.CommandNotFound):      
         return
     elif isinstance(error, NotAPlayerError):
         await ctx.send("You dont have a profile! Get one with `e$register`.")
         return
     elif isinstance(error, discord.ext.commands.errors.CommandOnCooldown): 
-        s = round(error.retry_after,2) # todo: convert to humanize instead of this dumb math
-        if s > 3600: # over 1 hour
-            s /= 3600
-            s = round(s,1)
-            s = f"{s} hour(s)"
-        elif s > 60: # over 1 minute
-            s /= 60
-            s = round(s,2)
-            s = f"{s} minute(s)"
-        else: #below 1 min
-            s = f"{s} seconds"
-        await ctx.send(f"`ERROR: Youre on cooldown for {s}!`", delete_after=15)
+        s = humanize.naturaldelta(round(error.retry_after,2))
+        await ctx.send(f"Error: Cooldown for {s}.", delete_after=15)
         return
     elif isinstance(error, commands.CheckFailure):
         # these should be handled in cogs
@@ -271,6 +266,12 @@ async def on_command_error(ctx, error): # this is an event that runs when there 
         # All other Errors not returned come here. And we can just print the default TraceBack.
         print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+
+@bot.event
+async def on_error(event):
+    # All other Errors not returned come here. And we can just print the default TraceBack.
+    print('A global error has occured:', file=sys.stderr)
+    traceback.print_exception(type(event), event, event.__traceback__, file=sys.stderr)
 
 if __name__ == "__main__":      
     asyncio.set_event_loop(asyncio.SelectorEventLoop())

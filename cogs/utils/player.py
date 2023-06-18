@@ -102,6 +102,11 @@ class player:
     async def update_name(self, name):
         """Updates name because of username update"""
         await self.bot.db.execute("UPDATE e_users SET name = ? WHERE id = ?", (name, self.id))
+    
+    async def get_commands_used(self):
+        cur = await self.bot.db.execute("SELECT commandsUsed FROM e_player_stats WHERE id = ?", (self.id,))
+        data = await cur.fetchone()
+        return data[0]
 
     @staticmethod
     async def create(bot, member_object):

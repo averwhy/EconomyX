@@ -32,7 +32,13 @@ class jobs(commands.Cog):
     def get_level(self, player_xp): # messy method to get level based on xp
         for xp in XP_REQUIREMENTS.values():
             if xp >= player_xp:
-                return list(XP_REQUIREMENTS.keys())[list(XP_REQUIREMENTS.values()).index(xp) - 1]
+                print("regular")
+                result = (list(XP_REQUIREMENTS.keys())[list(XP_REQUIREMENTS.values()).index(xp) - 1])
+                if result == 20: result = 1 # fuck this shit
+                return result
+            elif xp >= 3300:
+                print("xp >= 3300")
+                return 20
     
     def can_work(self, data: tuple):
         """Returns True if the player can work, False if not."""
@@ -83,12 +89,13 @@ class jobs(commands.Cog):
         except TypeError:
             #no player!
             level = 1
-            await self.bot.db.execute("INSERT INTO e_jobs VALUES (?, ?, ?, 0, ?, 0)", (player.id, xp, level, discord.utils.utcnow()))
+            await self.bot.db.execute("INSERT INTO e_jobs VALUES (?, ?, ?, 0, ?, 0)", (player.id, 0, level, discord.utils.utcnow()))
+            await self.bot.db.commit()
             player_worked = (await (await self.bot.db.execute("SELECT * FROM e_jobs WHERE id = ?", (player.id,))).fetchone())
             await ctx.send(f"You've started working for the first time! View your stats with `{ctx.clean_prefix}job`")
-            await self.bot.db.commit()
         if not self.can_work(player_worked):
             return await ctx.send(f"You worked too recently! You can work {discord.utils.format_dt(self.bot.utc_calc(player_worked[4], raw=True) + timedelta(hours=hours/2), 'R')}")
+        print(player_worked[1])
         current_level = self.get_level(player_worked[1])
         new_level = self.get_level((player_worked[1] + xp))
         pay = LEVEL_PAY[current_level]

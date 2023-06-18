@@ -13,7 +13,7 @@ class statistics(commands.Cog):
         self.bot = bot
     
     async def add(self, stat_name: str, amount: int = 1):
-        """Adds a given amount to a statistic value. Default is 1."""
+        """Adds a given amount to a BOT statistic value. Default is 1."""
         results = await (await self.bot.db.execute("SELECT statname FROM e_bot_stats")).fetchall()
         valid_stats = [s[0] for s in results]
         if stat_name not in valid_stats:
@@ -21,7 +21,25 @@ class statistics(commands.Cog):
             raise InvalidStatistic(f"{stat_name} is not a valid statistic to add to")
         stat_name = stat_name.strip()
         amount = int(amount)
-        await self.bot.db.execute(f"UPDATE e_bot_stats SET statvalue = (statvalue + ?) WHERE statname = ?", (amount, stat_name))
+        await self.bot.db.execute("UPDATE e_bot_stats SET statvalue = (statvalue + ?) WHERE statname = ?", (amount, stat_name,))
+        await self.bot.db.commit()
+
+    async def user_add_games(self, player: typing.Union[discord.Member, discord.User], amount: int = 1):
+        """Adds to gamesPlayed to a USER statistic value. Default is 1."""
+        amount = int(amount)
+        await self.bot.db.execute(f"UPDATE e_player_stats SET gamesPlayed = (gamesPlayed + ?) WHERE id = ?", (amount, player.id,))
+        await self.bot.db.commit()
+    
+    async def user_add_commands(self, player: typing.Union[discord.Member, discord.User], amount: int = 1):
+        """Adds to commandsUsed to a USER statistic value. Default is 1."""
+        amount = int(amount)
+        await self.bot.db.execute(f"UPDATE e_player_stats SET commandsUsed = (commandsUsed + ?) WHERE id = ?", (amount, player.id,))
+        await self.bot.db.commit()
+
+    async def user_add_paid(self, player: typing.Union[discord.Member, discord.User], amount: int = 1):
+        """Adds to amountPaid to a USER statistic value. Default is 1."""
+        amount = int(amount)
+        await self.bot.db.execute(f"UPDATE e_player_stats SET amountPaid = (amountPaid + ?) WHERE id = ?", (amount, player.id,))
         await self.bot.db.commit()
 
     @commands.command()
@@ -56,6 +74,10 @@ class statistics(commands.Cog):
             await self.bot.db.execute("INSERT INTO e_bot_stats VALUES ('totalprofilesViewed', 0, ?)", (discord.utils.utcnow(),))
 
             await self.bot.db.execute("INSERT INTO e_bot_stats VALUES ('totalCommands', 0, ?)", (discord.utils.utcnow(),))
+
+        #now for user stats
+        await self.bot.db.execute("CREATE TABLE IF NOT EXISTS e_player_stats (id int, gamesPlayed int, amountPaid int, commandsUsed, trackingsince blob)")
+        await self.bot.db.commit()
         self.bot.stats = self
     
     async def cog_unload(self):
@@ -64,6 +86,7 @@ class statistics(commands.Cog):
     @commands.Cog.listener()
     async def on_command(self, ctx):
         await self.add('totalCommands') # adds 1 to totalCommands
+        await self.user_add_commands(ctx.author)
 
 async def setup(bot):
     await bot.add_cog(statistics(bot))

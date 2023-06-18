@@ -22,6 +22,11 @@ class games(commands.Cog):
             5 : "<:dice_5:950189358554705920>",
             6 : "<:dice_6:950189361159360522"
         }
+
+    @commands.Cog.listener()
+    async def on_command_completion(self, ctx):
+        await Player.get(ctx.author.id, self.bot)
+        await self.bot.stats.user_add_games(ctx.author)
     
     @commands.cooldown(1,2,BucketType.user)
     @commands.command(aliases=["b"], description="Bets money. There is a 50/50 chance on winning and losing.")

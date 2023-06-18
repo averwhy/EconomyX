@@ -118,6 +118,7 @@ Created:         {ts} ago```
         """Forces a draw of the lottery"""
         try:
             await self.bot.get_cog('lottery').draw(force=True)
+            await ctx.message.add_reaction("\U00002705")
         except Exception as error:
             await ctx.send(f"An error occured while force drawing: `{error}`")
             print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)

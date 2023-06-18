@@ -35,7 +35,7 @@ class lottery(commands.Cog):
         if data is None:
             #no lottery data :(
             date = discord.utils.utcnow() + timedelta(hours=12)
-            await self.bot.db.execute("INSERT INTO e_lottery_main VALUES (?, 0)",(date,))
+            await self.bot.db.execute("INSERT INTO e_lottery_main VALUES (?, 1)",(date,))
             await self.bot.db.commit()
             return
         lotterystamp = data[0]
@@ -56,9 +56,9 @@ class lottery(commands.Cog):
             c = await self.bot.db.execute("SELECT * FROM e_lottery_users ORDER BY RANDOM()")
             winningplayer = await c.fetchone()
             user = await self.bot.fetch_user(winningplayer[0])
-            ts = self.bot.utc_calc(winningplayer[2])
+            ts = self.bot.utc_calc(winningplayer[2], type='R')
             try:
-                await user.send(f"Hey {user.mention}, **You won the lottery in EconomyX!**\nYou bought a ticket {ts} ago.\nYou won ${winningamount}")
+                await user.send(f"Hey {user.mention}, **You won the lottery in EconomyX!**\nYou bought a ticket {ts}\nYou won ${winningamount}")
             except discord.Forbidden:
                 #we cant dm them. Sad!
                 # i guess we'll just pay them and up their stats. oh well
@@ -68,6 +68,16 @@ class lottery(commands.Cog):
             await self.bot.db.execute("DELETE FROM e_lottery_users")
             await self.bot.db.execute("UPDATE e_lottery_main SET drawingnum = (drawingnum + 1)")
             await self.bot.stats.add('totalLotteries')
+
+            #achievement check
+            ach = self.bot.get_cog('achievements')
+            if await ach.has_ach(user, 15):
+                await ach.give_ach(user, 15)
+            player = await Player.get(user.id, self.bot)
+            if player.lotteries_won >= 5:
+                if await ach.has_ach(user, 16):
+                    await ach.give_ach(user, 16)
+
             await self.reset_lottery_time() # it commits in here
         elif diff > 0:
             #Too soon, dont draw
@@ -106,11 +116,11 @@ class lottery(commands.Cog):
         
         c = await self.bot.db.execute("SELECT * FROM e_lottery_main")
         drawingwhen = await c.fetchone()
-        ts = self.bot.lottery_countdown_calc(drawingwhen[0])
-        await self.bot.db.execute("INSERT INTO e_lottery_users VALUES (?, ?, ?)",(ctx.author.id, ctx.author.name, discord.utils.utcnow(),))
+        ts = self.bot.utc_calc(drawingwhen[0], type='R')
+        await self.bot.db.execute("INSERT INTO e_lottery_users VALUES (?, ?, ?)",(ctx.author.id, ctx.author.name, datetime.utcnow(),))
         await player.update_balance(-100, ctx=ctx)
         await self.bot.stats.add('totalLotteries')
-        await ctx.send(f"You bought a lottery ticket for $100. The next lottery drawing is in `{ts[1]}h, {ts[2]}m, {ts[3]}s`. I will DM you if you are picked.")
+        await ctx.send(f"You bought a lottery ticket for $100. The next lottery drawing is in {ts}. I will DM you if you are picked.")
         
         
 async def setup(bot):
