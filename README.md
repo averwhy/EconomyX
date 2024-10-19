@@ -4,7 +4,7 @@
 ![GitHub issues](https://img.shields.io/github/issues/averwhy/EconomyX?style=flat-square)
 ![GitHub](https://img.shields.io/github/license/averwhy/EconomyX?style=flat-square)
 ![GitHub Repo stars](https://img.shields.io/github/stars/averwhy/EconomyX?color=e3b341&style=flat-square)
-![Maintenance](https://img.shields.io/maintenance/yes/2023?style=flat-square)
+![Maintenance](https://img.shields.io/maintenance/yes/2024?style=flat-square)
 
 # EconomyX
  A unique, global economy bot for Discord.
