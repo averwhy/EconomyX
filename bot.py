@@ -165,18 +165,7 @@ class EcoBot(commands.Bot):
         did_they = await self.prompt(ctx.author.id, msg, timeout=30, delete_after=False)
         if did_they:
             await bot.pool.execute("DELETE FROM e_users WHERE id = $1", ctx.author.id)
-            await bot.pool.execute(
-                "DELETE FROM e_invests WHERE userid = $1", ctx.author.id
-            )
-            await bot.pool.execute(
-                "DELETE FROM e_stocks WHERE ownerid = $1", ctx.author.id
-            )
-            await bot.pool.execute(
-                "DELETE FROM e_user_stats WHERE ID = $1", ctx.author.id
-            )
-            await ctx.send(
-                "Okay, it's done. According to my database, you no longer exist.\nThank you for using EconomyX."
-            )
+            await ctx.send("Okay, it's done. According to my database, you no longer exist.\nThank you for using EconomyX.")
         if not did_they:
             await ctx.send("Phew, canceled. None of your data was deleted.")
         if did_they is None:
@@ -215,6 +204,8 @@ class EcoBot(commands.Bot):
         days, hours = divmod(hours, 24)
         return [days, hours, minutes, seconds]
 
+async def get_prefix(bot, message):
+    return bot.prefixes.get(message.author.id, bot.default_prefix)
 
 bot = EcoBot(
     command_prefix=get_prefix,
@@ -224,11 +215,6 @@ bot = EcoBot(
         reactions=True, messages=True, guilds=True, members=True, message_content=True
     ),
 )
-
-
-async def get_prefix(bot, message):
-    return bot.prefixes.get(message.author.id, bot.default_prefix)
-
 
 with open("TOKEN.txt", "r") as t:
     TOKEN = t.readline()
