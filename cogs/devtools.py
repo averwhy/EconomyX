@@ -196,7 +196,7 @@ Created:         {ts} ago```
         error = ""
         p1 = time.perf_counter()
         try:
-            result = None #prevents deepsource from yelling at me
+            result = None  # prevents deepsource from yelling at me
             result = await self.bot.pool.fetch(query)
         except Exception as e:
             failed = True
@@ -435,7 +435,9 @@ Created:         {ts} ago```
             )
 
     @dev.command()
-    async def sudo(self, ctx, target: discord.Member, channel: discord.TextChannel = None):
+    async def sudo(
+        self, ctx, target: discord.Member, channel: discord.TextChannel = None
+    ):
         msg = ctx.message
         new_channel = channel or ctx.channel
         msg.channel = new_channel

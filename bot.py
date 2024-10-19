@@ -215,6 +215,7 @@ class EcoBot(commands.Bot):
         days, hours = divmod(hours, 24)
         return [days, hours, minutes, seconds]
 
+
 bot = EcoBot(
     command_prefix=get_prefix,
     description=desc,
@@ -224,8 +225,10 @@ bot = EcoBot(
     ),
 )
 
+
 async def get_prefix(bot, message):
     return bot.prefixes.get(message.author.id, bot.default_prefix)
+
 
 with open("TOKEN.txt", "r") as t:
     TOKEN = t.readline()

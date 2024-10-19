@@ -281,7 +281,7 @@ class misc(commands.Cog, command_attrs=dict(name="Misc")):
                 "<https://github.com/averwhy/EconomyX/blob/main/cogs/misc.py#L21-L81>"
             )
             return
-        if command in ('jsk', 'jishaku'):
+        if command in ("jsk", "jishaku"):
             await ctx.send(
                 "Jishaku is a debug and testing command made for discord.py. The code can be found here:\n<https://github.com/Gorialis/jishaku>"
             )

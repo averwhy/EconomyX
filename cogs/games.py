@@ -148,7 +148,9 @@ class Blackjack(discord.ui.View):
         finally:
             await interaction.message.edit(content=message_text, embed=embed, view=self)
 
-    async def win(self, interaction: discord.Interaction = None, button_clicked: int = None):
+    async def win(
+        self, interaction: discord.Interaction = None, button_clicked: int = None
+    ):
         self.embed.color = discord.Color.green()
         self.embed.set_footer(text=f"You won ${self.player_bet}!")
         self.disable()
