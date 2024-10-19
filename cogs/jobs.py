@@ -119,7 +119,7 @@ class jobs(commands.Cog, command_attrs=dict(name="Jobs")):
             player_xp = data[1]
             player_level = data[2]
             player_timesworked = data[3]
-            player_lastworked = self.bot.utc_calc(data[4], type="R")
+            player_lastworked = self.bot.utc_calc(data[4], style="R")
             progress_bar = self.level_bar(
                 player_xp / XP_REQUIREMENTS[(self.get_level(player_xp) + 1)]
             )
@@ -158,7 +158,7 @@ class jobs(commands.Cog, command_attrs=dict(name="Jobs")):
             )
         elif not self.can_work(player_worked):
             return await ctx.send(
-                f"You worked too recently! You can work {discord.utils.format_dt(self.bot.utc_calc(player_worked[4], raw=True) + timedelta(hours=hours/2), 'R')}"
+                f"You worked too recently! You can work {discord.utils.format_dt(self.bot.utc_calc(player_worked[4], raw=True) + timedelta(hours=hours/2), style='R')}"
             )
         current_level = self.get_level(player_worked[1])
         new_level = self.get_level((player_worked[1] + xp))

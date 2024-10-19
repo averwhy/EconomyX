@@ -90,7 +90,7 @@ class stocks(commands.Cog, command_attrs=dict(name="Stocks")):
             embed.add_field(
                 name="Owned Stock", value=f"{playerstock[1]} [`{playerstock[0]}`]"
             )
-            tl = self.bot.utc_calc(playerstock[5], type="R")
+            tl = self.bot.utc_calc(playerstock[5], style="R")
             embed.add_field(name="Stock Created", value=tl)
             embed.add_field(name="Stock Points", value=f"{round(playerstock[2],1)}")
         playerinvests = await self.bot.pool.fetch(
@@ -101,7 +101,7 @@ class stocks(commands.Cog, command_attrs=dict(name="Stocks")):
         else:
             t = ""
             for i in playerinvests:
-                tl = self.bot.utc_calc(i[5], type="R")
+                tl = self.bot.utc_calc(i[5], style="R")
                 t = t + (
                     f"{i[3]} [`{i[0]}`]: invested ${i[2]} @ {round(i[4],1)} points, {tl}\n"
                 )
@@ -139,7 +139,7 @@ class stocks(commands.Cog, command_attrs=dict(name="Stocks")):
             investor_count = await self.bot.pool.fetchrow(
                 "SELECT COUNT(*) FROM e_invests WHERE stockid = $1", i[0]
             )
-            tl = self.bot.utc_calc(i[5], type="R")
+            tl = self.bot.utc_calc(i[5], style="R")
             embed.add_field(
                 name=i[1],
                 value=f"ID: {i[0]}, Points: {round(i[2],1)}, {tuple(investor_count)[0]} Investors, Created {tl}",
@@ -156,8 +156,8 @@ class stocks(commands.Cog, command_attrs=dict(name="Stocks")):
                 "I couldn't find that stock, check the name or ID again. Note: Names are case sensitive."
             )
         embed = discord.Embed(title=f"{stock[1]}", description=f"ID: {stock[0]}")
-        tl1 = self.bot.utc_calc(stock[5], type="R")
-        tl2 = self.bot.utc_calc(stock[5], type="F")
+        tl1 = self.bot.utc_calc(stock[5], style="R")
+        tl2 = self.bot.utc_calc(stock[5], style="F")
         embed.add_field(name="Stock Created", value=f"{tl2} / {tl1}")
         upordown = "UP" if stock[3] < stock[2] else "DOWN"
         embed.add_field(

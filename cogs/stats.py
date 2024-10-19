@@ -76,7 +76,7 @@ class statistics(commands.Cog, command_attrs=dict(name="Statistics")):
         results = await self.bot.pool.fetch("SELECT * FROM e_bot_stats")
         for e in tuple(results):
             embed.add_field(
-                name=e[0], value=f"{e[1]}\n({self.bot.utc_calc(e[2],type='R')})"
+                name=e[0], value=f"{e[1]}\n({self.bot.utc_calc(e[2],style='R')})"
             )
 
         await ctx.send(embed=embed)

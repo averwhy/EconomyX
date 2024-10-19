@@ -61,7 +61,7 @@ class lottery(commands.Cog, command_attrs=dict(name="Lottery")):
                 "SELECT * FROM e_lottery_users ORDER BY RANDOM()"
             )
             user = await self.bot.fetch_user(tuple(winningplayer)[0])
-            ts = self.bot.utc_calc(winningplayer[2], type="R")
+            ts = self.bot.utc_calc(winningplayer[2], style="R")
             try:
                 await user.send(
                     f"Hey {user.mention}, **You won the lottery in EconomyX!**\nYou bought a ticket {ts}\nYou won ${winningamount}"
@@ -139,7 +139,7 @@ class lottery(commands.Cog, command_attrs=dict(name="Lottery")):
             )
 
         drawingwhen = await self.bot.pool.fetchrow("SELECT * FROM e_lottery_main")
-        ts = self.bot.utc_calc(tuple(drawingwhen)[0], type="R")
+        ts = self.bot.utc_calc(tuple(drawingwhen)[0], style="R")
         await self.bot.pool.execute(
             "INSERT INTO e_lottery_users VALUES ($1, $2, $3)",
             ctx.author.id,

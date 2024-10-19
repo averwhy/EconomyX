@@ -278,7 +278,7 @@ class achievements(commands.Cog, command_attrs=dict(name="Achievements")):
         for a in achs:
             embed.add_field(
                 name=AchievementsDict[a[1]].name,
-                value=f"{AchievementsDict[a[1]].desc}\nUnlocked {self.bot.utc_calc(a[2], type='R')}",
+                value=f"{AchievementsDict[a[1]].desc}\nUnlocked {self.bot.utc_calc(a[2], style='R')}",
             )
         if len(achs) == 0:
             embed.description = f"{ctx.author.name} has no achievements yet!"
