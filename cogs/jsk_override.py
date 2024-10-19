@@ -76,29 +76,35 @@ from jishaku.meta import __version__
 
 # Everything here below is credit to Stella
 
-EmojiSettings = namedtuple('EmojiSettings', 'start back forward end close')
+EmojiSettings = namedtuple("EmojiSettings", "start back forward end close")
+
 
 class FakeEmote(discord.PartialEmoji):
     """
     Due to the nature of jishaku checking if an emoji object is the reaction, passing raw str into it will not work.
     Creating a PartialEmoji object is needed instead.
     """
+
     @classmethod
     def from_name(cls, name):
         emoji_name = re.sub("|<|>", "", name)
         a, name, id = emoji_name.split(":")
         return cls(name=name, id=int(id), animated=bool(a))
 
+
 emote = EmojiSettings(
     start=FakeEmote.from_name("<a:thick_loading:793168593663164446>"),
     back=FakeEmote.from_name("<:PepePoint_flipped:798178551459348540>"),
     forward=FakeEmote.from_name("<:PepePoint:759934591590203423>"),
     end=FakeEmote.from_name("<:blobstop:749111017778184302>"),
-    close=FakeEmote.from_name("<:redTick:596576672149667840>")
+    close=FakeEmote.from_name("<:redTick:596576672149667840>"),
 )
 jishaku.paginators.EMOJI_DEFAULT = emote  # Overrides jishaku emojis
 
-async def attempt_add_reaction(msg: discord.Message, reaction: Union[str, discord.Emoji]):
+
+async def attempt_add_reaction(
+    msg: discord.Message, reaction: Union[str, discord.Emoji]
+):
     """
     This is responsible for every add reaction happening in jishaku. Instead of replacing each emoji that it uses in
     the source code, it will try to find the corresponding emoji that is being used instead.
@@ -108,13 +114,15 @@ async def attempt_add_reaction(msg: discord.Message, reaction: Union[str, discor
         "\N{BLACK RIGHT-POINTING TRIANGLE}": "<a:thick_loading:793168593663164446>",
         "\N{HEAVY EXCLAMATION MARK SYMBOL}": "<a:sno:784149860726865930>",
         "\N{DOUBLE EXCLAMATION MARK}": "<a:sno:784149860726865930>",
-        "\N{ALARM CLOCK}": emote.end
+        "\N{ALARM CLOCK}": emote.end,
     }
     react = reacts[reaction] if reaction in reacts else reaction
     with contextlib.suppress(discord.HTTPException):
         return await msg.add_reaction(react)
 
+
 jishaku.exception_handling.attempt_add_reaction = attempt_add_reaction
+
 
 async def setup(bot):
     # await bot.add_cog(CustomDebugCog(bot=bot))

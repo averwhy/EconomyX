@@ -1,9 +1,12 @@
 *.pyc
 TOKEN.txt
+YTOKEN.txt
 nohup.out
+*.out
 *.db-journal
 *.db
 WEBHOOK.txt
+ACH_WEBHOOK.txt
 /bin/
 *.cfg
 /lib/
