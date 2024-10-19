@@ -353,15 +353,13 @@ class treasurehunting(commands.Cog, command_attrs=dict(name="Treasures")):
         )
         ownedIDs = [s.get("shovelid") for s in ownedShovels]
         upperlimit = max(ownedIDs) + 7
-        toollist = list(
-            [
-                (
-                    f"[${t.price}] {t.name} ({t.multiplier}) {CHECK if t.id in ownedIDs else ''}"
-                )
-                for t in SHOVELS
-                if t.id < upperlimit
-            ]
-        )
+        toollist = [
+            (
+                f"[${t.price}] {t.name} ({t.multiplier}) {CHECK if t.id in ownedIDs else ''}"
+            )
+            for t in SHOVELS
+            if t.id < upperlimit
+        ]
         alltools = "\n".join(toollist)
         embed = discord.Embed(
             title="⛏ Treasure Tool Shop",
@@ -394,14 +392,12 @@ class treasurehunting(commands.Cog, command_attrs=dict(name="Treasures")):
             "SELECT perkid FROM e_treasure_perks WHERE id = $1", ctx.author.id
         )
         activeIDs = [s.get("perkid") for s in activePerks]
-        perklist = list(
-            [
-                (
-                    f"[{p.id}] {p.name} ({p.description}) {CHECK if p.id in activeIDs else ''}"
-                )
-                for p in PERKS
-            ]
-        )
+        perklist = [
+            (
+                f"[{p.id}] {p.name} ({p.description}) {CHECK if p.id in activeIDs else ''}"
+            )
+            for p in PERKS
+        ]
         allperks = "\n".join(perklist)
         embed = discord.Embed(
             title="⛏ Treasure Perk Shop",

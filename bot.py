@@ -10,8 +10,7 @@ import config
 import logging
 from discord.ext import commands
 from datetime import datetime, timezone
-from cogs.utils.errors import InvalidBetAmountError, NotAPlayerError, UnloadedError
-from cogs.utils.player import player as Player
+from cogs.utils.errors import InvalidBetAmountError, NotAPlayerError
 from dateutil import parser
 
 log = logging.getLogger(__name__)
@@ -96,7 +95,7 @@ class EcoBot(commands.Bot):
             try:
                 await self.load_extension(f"{cog}")
                 success += 1
-            except Exception as e:
+            except Exception:
                 log.error(f"failed to load {cog}, error:\n", file=sys.stderr)
                 failed += 1
                 traceback.print_exc()
@@ -188,7 +187,7 @@ class EcoBot(commands.Bot):
     def utc_calc(
         self,
         timestamp: typing.Union[str, datetime],
-        type: str = None,
+        style: str = None,
         raw: bool = False,
         tz: timezone = timezone.utc,
     ):
@@ -199,9 +198,9 @@ class EcoBot(commands.Bot):
             formatted_ts = timestamp
         if raw:
             return formatted_ts
-        if type:
+        if style:
             return discord.utils.format_dt(
-                formatted_ts, type
+                formatted_ts, style
             )  # Why tf did i put this in here, im terrible at writing methods lmao
         return humanize.precisedelta(formatted_ts.astimezone())
 
@@ -216,11 +215,6 @@ class EcoBot(commands.Bot):
         days, hours = divmod(hours, 24)
         return [days, hours, minutes, seconds]
 
-
-async def get_prefix(bot, message):
-    return bot.prefixes.get(message.author.id, bot.default_prefix)
-
-
 bot = EcoBot(
     command_prefix=get_prefix,
     description=desc,
@@ -229,6 +223,9 @@ bot = EcoBot(
         reactions=True, messages=True, guilds=True, members=True, message_content=True
     ),
 )
+
+async def get_prefix(bot, message):
+    return bot.prefixes.get(message.author.id, bot.default_prefix)
 
 with open("TOKEN.txt", "r") as t:
     TOKEN = t.readline()
@@ -248,7 +245,7 @@ bot.initial_extensions = [
     "cogs.treasure",
 ]
 bot.time_started = time.localtime()
-bot.version = "1.0.0"
+bot.version = "1.0.2"
 bot.newstext = None
 bot.news_set_by = "no one yet.."
 bot.total_command_errors = 0

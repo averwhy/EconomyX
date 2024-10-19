@@ -47,7 +47,7 @@ class player:
         amount: typing.Union[int, str],
         minimum: int = 1,
         allow_all: bool = True,
-        max: int = -1,
+        b_max: int = -1,
     ):
         """Validates a players bet to ensure that the player can't bet too much or too little money."""
         if allow_all:
@@ -64,10 +64,10 @@ class player:
             raise errors.InvalidBetAmountError(
                 f"Too small of a bet. (Minimum ${minimum})"
             )
-        if max != -1:  # There is max
-            if amount > max:
+        if b_max != -1:  # Too large
+            if amount > b_max:
                 raise errors.InvalidBetAmountError(
-                    f"Too large of a bet. (Maximum ${max})"
+                    f"Too large of a bet. (Maximum ${b_max})"
                 )
         return amount
 
@@ -113,7 +113,6 @@ class player:
         else:
             author = ctx.author
         i_or_d = "increased" if amount > 0 else "decreased"
-        now = discord.utils.utcnow()
         msg = f"{author} ({author.id}) balance {i_or_d} by {amount} with command '{(command.parent.name+'') if command.parent is not None else ''}{command.name}'"
         log.info(msg)
 
@@ -163,7 +162,7 @@ class player:
             "INSERT INTO e_player_stats(id, gamesPlayed, amountPaid, commandsUsed) VALUES ($1, 0, 0, 0)",
             member_object.id,
         )
-        return get(member_object.id)
+        return get(member_object.id, bot=bot)
 
     def __str__(self) -> str:
         return f"<@{self.id}>"

@@ -196,6 +196,7 @@ Created:         {ts} ago```
         error = ""
         p1 = time.perf_counter()
         try:
+            result = None #prevents deepsource from yelling at me
             result = await self.bot.pool.fetch(query)
         except Exception as e:
             failed = True
@@ -205,9 +206,11 @@ Created:         {ts} ago```
             perf = round((p2 - p1) * 1000, 2)
             if failed:
                 rfe = random.choice(failed_emojis)
-                return await ctx.send(f"{rfe} `{perf}s`: {error}")
+                await ctx.send(f"{rfe} `{perf}s`: {error}")
+                return
             rse = random.choice(success_emojis)
-            return await ctx.send(f"{rse} `{perf}ms`: {str(result)}")
+            await ctx.send(f"{rse} `{perf}ms`: {str(result)}")
+            return
 
     @dev.group(invoke_without_command=True)
     async def eco(self, ctx):
@@ -321,7 +324,6 @@ Created:         {ts} ago```
                 if n.name == ename.strip():
                     allemojis.append(n)
         charlim = 4096
-        fieldlim = 1
         charcount = 0
         current_message = ""
         descs = []
@@ -433,12 +435,12 @@ Created:         {ts} ago```
             )
 
     @dev.command()
-    async def sudo(self, ctx, target: discord.Member):
-        msg = copy.copy(ctx.message)
+    async def sudo(self, ctx, target: discord.Member, channel: discord.TextChannel = None):
+        msg = ctx.message
         new_channel = channel or ctx.channel
         msg.channel = new_channel
-        msg.author = who
-        msg.content = ctx.prefix + command
+        msg.author = target
+        msg.content = ctx.prefix + ctx.command
         new_ctx = await self.bot.get_context(msg, cls=type(ctx))
         await self.bot.invoke(new_ctx)
 

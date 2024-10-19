@@ -39,7 +39,7 @@ class statistics(commands.Cog, command_attrs=dict(name="Statistics")):
         """Adds to gamesPlayed to a USER statistic value. Default is 1."""
         amount = int(amount)
         await self.bot.pool.execute(
-            f"UPDATE e_player_stats SET gamesPlayed = (gamesPlayed + $1) WHERE id = $2",
+            "UPDATE e_player_stats SET gamesPlayed = (gamesPlayed + $1) WHERE id = $2",
             amount,
             player.id,
         )
@@ -50,7 +50,7 @@ class statistics(commands.Cog, command_attrs=dict(name="Statistics")):
         """Adds to commandsUsed to a USER statistic value. Default is 1."""
         amount = int(amount)
         await self.bot.pool.execute(
-            f"UPDATE e_player_stats SET commandsUsed = (commandsUsed + $1) WHERE id = $2",
+            "UPDATE e_player_stats SET commandsUsed = (commandsUsed + $1) WHERE id = $2",
             amount,
             player.id,
         )
@@ -61,7 +61,7 @@ class statistics(commands.Cog, command_attrs=dict(name="Statistics")):
         """Adds to amountPaid to a USER statistic value. Default is 1."""
         amount = int(amount)
         await self.bot.pool.execute(
-            f"UPDATE e_player_stats SET amountPaid = (amountPaid + $1) WHERE id = $2",
+            "UPDATE e_player_stats SET amountPaid = (amountPaid + $1) WHERE id = $2",
             amount,
             player.id,
         )

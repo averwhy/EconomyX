@@ -148,7 +148,7 @@ class Blackjack(discord.ui.View):
         finally:
             await interaction.message.edit(content=message_text, embed=embed, view=self)
 
-    async def win(self, interaction: discord.Interaction, button_clicked: int):
+    async def win(self, interaction: discord.Interaction = None, button_clicked: int = None):
         self.embed.color = discord.Color.green()
         self.embed.set_footer(text=f"You won ${self.player_bet}!")
         self.disable()
@@ -220,23 +220,23 @@ class Blackjack(discord.ui.View):
     def disable(
         self, stop_at=-1, except_for=-1, only=-1, styles=discord.ButtonStyle.gray
     ):
-        iter = 0
+        step = 0
         for i in self.children:
             if only != -1:
-                if iter == only:
+                if step == only:
                     i.disabled = True
                     i.style = styles
                     break
                 else:
-                    iter += 1
+                    step += 1
             else:
-                if iter == stop_at:
+                if step == stop_at:
                     break
-                if iter == except_for:
+                if step == except_for:
                     continue
                 i.disabled = True
                 i.style = styles
-                iter += 1
+                step += 1
 
     @discord.ui.button(label="Hit", style=discord.ButtonStyle.primary)
     async def hit(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -346,7 +346,7 @@ class games(commands.Cog, command_attrs=dict(name="Games")):
     )
     async def bet(self, ctx, amount):
         player = await Player.get(ctx.author.id, self.bot)
-        amount = player.validate_bet(amount, max=10000)
+        amount = player.validate_bet(amount, b_max=10000)
 
         y = random.choice([True, False])
         if not y:
@@ -365,7 +365,7 @@ class games(commands.Cog, command_attrs=dict(name="Games")):
     async def roulette(self, ctx, amount):
         """Roulette gambling command. Starts a propmpt in which the user reacts with the color they wish to bet."""
         player = await Player.get(ctx.author.id, self.bot)
-        amount = player.validate_bet(amount, max=10000)
+        amount = player.validate_bet(amount, b_max=10000)
 
         confirm = await ctx.send(
             "Choose one of the 3 colors to bet on `(🔴: 2x, ⚫: 2x, 🟢: 25x)`:"
@@ -422,7 +422,7 @@ class games(commands.Cog, command_attrs=dict(name="Games")):
     async def rockpaperscissors(self, ctx, amount, choice):
         """Rock paper scissor game. `amount` is money you want to bet, and choice must be `rock`, `paper`, or `scissor` (singular, no 's)"""
         player = await Player.get(ctx.author.id, self.bot)
-        amount = player.validate_bet(amount, max=10000)
+        amount = player.validate_bet(amount, b_max=10000)
         rand = random.randint(0, 2)
         summary = ""
         choices = ["paper", "scissor", "rock"]
@@ -451,7 +451,7 @@ class games(commands.Cog, command_attrs=dict(name="Games")):
     async def guess(self, ctx, amount: int):
         """Guesing game with money. You have 5 chances to guess the number randomly chosen between 1-10.\nThis amounts to a 50/50 chance."""
         player = await Player.get(ctx.author.id, self.bot)
-        amount = player.validate_bet(amount, max=10000)
+        amount = player.validate_bet(amount, b_max=10000)
 
         await ctx.send(
             f"Alright, your bet is ${amount}. If you lose, you pay that. If you win, you earn that.\nI'm thinking of a number between 1 and 10. You have 5 tries."
@@ -513,7 +513,7 @@ class games(commands.Cog, command_attrs=dict(name="Games")):
         When you 'stand', you're keeping the cards you currently have. The dealer will then either reveal their hidden card (if *their*  card total is 17 or higher), or draw another (if their card total is 16 or lower.)
         """
         player = await Player.get(ctx.author.id, self.bot)
-        amount = player.validate_bet(amount, minimum=1, max=10000)
+        amount = player.validate_bet(amount, minimum=1, b_max=10000)
 
         bjview = Blackjack(self.bot, ctx, player, amount)
         embed = await bjview.create_embed()
@@ -521,10 +521,6 @@ class games(commands.Cog, command_attrs=dict(name="Games")):
         if bjview.player_total == 21:
             await asyncio.sleep(0.25)
             await bjview.blackjack(game_msg)
-        if bjview.player_total >= 22:
-            await bjview.lose()
-        if bjview.dealer_total >= 22:
-            await bjview.win()
         if await bjview.wait():
             # try: await game_msg.delete()
             # except discord.NotFound: pass # it wouldnt be a forbidden error, since its the bot's own message. it could only
@@ -542,7 +538,7 @@ class games(commands.Cog, command_attrs=dict(name="Games")):
         - Roll a 4-6 or 8-10, re-roll until you either roll a 7 and lose, or roll your original roll and win 2x your bet.
         """
         player = await Player.get(ctx.author.id, self.bot)
-        amount = player.validate_bet(amount, minimum=10, max=10000)
+        amount = player.validate_bet(amount, minimum=10, b_max=10000)
         dice1 = random.randrange(1, 6)
         dice2 = random.randrange(1, 6)
         dices = dice1 + dice2

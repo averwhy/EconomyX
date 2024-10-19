@@ -144,7 +144,6 @@ class jobs(commands.Cog, command_attrs=dict(name="Jobs")):
         )
         if player_worked is None:
             # no player!
-            level = 1
             await self.bot.pool.execute(
                 "INSERT INTO e_jobs(id, lastworked, lasthours) VALUES ($1, $2, $3)",
                 player.id,

@@ -5,6 +5,7 @@ nohup.out
 *.out
 *.db-journal
 *.db
+*.sql
 WEBHOOK.txt
 ACH_WEBHOOK.txt
 /bin/
