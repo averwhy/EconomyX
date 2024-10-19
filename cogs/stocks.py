@@ -2,13 +2,15 @@ import discord
 import re
 import random
 import asyncio
-import aiosqlite
+import logging
 from discord.ext import commands
 from discord.ext import tasks
 from datetime import datetime
 from .utils.botviews import Confirm
 from .utils import player as Player
 OWNER_ID = 267410788996743168
+log = logging.getLogger(__name__)
+
 
 class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
     """
@@ -18,27 +20,24 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
         self.bot = bot
     
     async def cog_load(self):
-        await self.bot.db.execute("CREATE TABLE IF NOT EXISTS e_stocks (stockid int, name text, points double, previouspoints double, ownerid int, created text, icon_url blob)")
-        await self.bot.db.execute("CREATE TABLE IF NOT EXISTS e_invests (stockid int, userid int, invested int, stockname text, invested_at double, invested_date blob)")
         self.main_stock_loop.start()
 
     async def cog_unload(self):
         self.main_stock_loop.cancel()
         
-    @tasks.loop(seconds=600)
+    @tasks.loop(seconds=630)
     async def main_stock_loop(self):
         await self.bot.wait_until_ready()
-        c = await self.bot.db.execute("SELECT * FROM e_stocks")
-        all_stocks = await c.fetchall()
+        all_stocks = await self.bot.pool.fetch("SELECT * FROM e_stocks")
         for s in all_stocks:
+            s = tuple(s)
             previous_amount = s[2]
             bruh = random.choice([True, False]) # true = add, false = subtract
-            amount = random.uniform(0.01,0.30)
+            amount = random.uniform(0.09,0.65)
             amount = round(amount,2)
             if bruh:
-                await self.bot.db.execute("UPDATE e_stocks SET points = (points + ?) WHERE stockid = ?",(amount, s[0]))
-                print((s[0]+amount))
-                if (s[0]+amount) >= 200:
+                await self.bot.pool.execute("UPDATE e_stocks SET points = (points + $1) WHERE stockid = $2",amount, s[0])
+                if (s[2]+amount) >= 200:
                     ach = self.bot.get_cog('achievements')
                     if await ach.has_ach(s[4], 13):
                         player = await self.bot.fetch_user(s[4])
@@ -52,10 +51,10 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
                         player = await self.bot.fetch_user(s[4])
                         await ach.give_ach(player, 14)
                 else:
-                    await self.bot.db.execute("UPDATE e_stocks SET points = (points - ?) WHERE stockid = ?",(amount, s[0]))
+                    await self.bot.pool.execute("UPDATE e_stocks SET points = (points - $1) WHERE stockid = $2",amount, s[0])
             #then update previous amount for e$stock view 
-            await self.bot.db.execute("UPDATE e_stocks SET previouspoints = ? WHERE stockid = ?", (previous_amount, s[0]))
-        print(f"{len(all_stocks)} stocks updated")
+            await self.bot.pool.execute("UPDATE e_stocks SET previouspoints = $1 WHERE stockid = $2", previous_amount, s[0])
+        log.info(f"{len(all_stocks)} stocks updated")
     
     @commands.command(aliases=["port","pf"])
     async def portfolio(self, ctx, user: discord.User = None):
@@ -75,9 +74,8 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
             tl = self.bot.utc_calc(playerstock[5], type="R")
             embed.add_field(name="Stock Created",value=tl)
             embed.add_field(name="Stock Points",value=f"{round(playerstock[2],1)}")
-        c = await self.bot.db.execute("SELECT * FROM e_invests WHERE userid = ?",(user.id,))
-        playerinvests = await c.fetchall()
-        if playerinvests is None:
+        playerinvests = await self.bot.pool.fetch("SELECT * FROM e_invests WHERE userid = $1", user.id)
+        if len(playerinvests) == 0:
             embed.add_field(name="Invested Stocks",value="None")
         else:
             t = ""
@@ -93,29 +91,27 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
     async def stock(self, ctx):
         """Stocks management commands. Invoking without a command shows list of top stocks."""
         player = await Player.get(ctx.author.id, self.bot)
-        cur = await self.bot.db.execute("SELECT * FROM e_stocks ORDER BY points DESC;")
-        allstocks = await cur.fetchall()
+        allstocks = await self.bot.pool.fetch("SELECT * FROM e_stocks ORDER BY points DESC;")
         try:
-            cur = await self.bot.db.execute("SELECT SUM(invested) FROM e_invests")
-            total_invested = f"${((await cur.fetchone())[0])}"
-        except aiosqlite.OperationalError:
+            cur = await self.bot.pool.fetchrow("SELECT SUM(invested) FROM e_invests")
+            total_invested = f"${((tuple(cur))[0])}"
+        except Exception: #TODO: find out what integer overflow error is
             total_invested = "\n**More than 9.23 quintillion ($9,223,372,036,854,775,807) dollars**"
 
-        cur = await self.bot.db.execute("SELECT SUM(points) FROM e_stocks")
-        total_points = await cur.fetchone()
+        total_points = await self.bot.pool.fetchrow("SELECT SUM(points) FROM e_stocks")
         embed = discord.Embed(
             title="All Stocks",
-            description=f"Total amount invested: {total_invested},\nTotal stock points: {round(total_points[0], 2)}",
+            description=f"Total amount invested: {total_invested},\nTotal stock points: {round(tuple(total_points)[0], 2)}",
             color=player.profile_color
             )
         counter = 0
         for i in allstocks:
+            i = tuple(i)
             if counter > 10:
                 break
-            cur = await self.bot.db.execute("SELECT COUNT(*) FROM e_invests WHERE stockid = ?",(i[0],))
-            investor_count = await cur.fetchone()
+            investor_count = await self.bot.pool.fetchrow("SELECT COUNT(*) FROM e_invests WHERE stockid = $1", i[0])
             tl = self.bot.utc_calc(i[5], type="R")
-            embed.add_field(name=i[1],value=f"ID: {i[0]}, Points: {round(i[2],1)}, {investor_count[0]} Investors, Created {tl}")
+            embed.add_field(name=i[1],value=f"ID: {i[0]}, Points: {round(i[2],1)}, {tuple(investor_count)[0]} Investors, Created {tl}")
             counter += 1
         await ctx.send(embed=embed)
     
@@ -161,9 +157,8 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
         if view.value is None:
             return await msg.edit(content=f"Timed out after 3 minutes.")
         elif view.value:
-            stock_created_at = discord.utils.utcnow()
-            await self.bot.db.execute("UPDATE e_users SET bal = (bal - 1000) WHERE id = ?",(ctx.author.id,))
-            await self.bot.db.execute("INSERT INTO e_stocks VALUES (?, ?, 10.0, 10.0, ?, ?, ?)",(stockid, name, ctx.author.id, stock_created_at, icon_url,))
+            await self.bot.pool.execute("UPDATE e_users SET bal = (bal - 1000) WHERE id = $1", ctx.author.id)
+            await self.bot.pool.execute("INSERT INTO e_stocks(id, name, ownerid, icon_url) VALUES ($1, $2, $3, $4)", stockid, name, ctx.author.id, icon_url)
             await msg.delete()
             return await ctx.reply('👍')
         else:
@@ -177,18 +172,16 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
         if playerstock is None:
             return await ctx.send("You don't have a stock. If you want make one, use `e$stock create <name>`")
         
-        cur = await self.bot.db.execute("SELECT COUNT(*) FROM e_invests WHERE stockid = ?",(playerstock[0],))
-        investor_count = await cur.fetchone()
-        cur = await self.bot.db.execute("SELECT SUM(invested) FROM e_invests WHERE stockid = ?",(playerstock[0],))
-        sum_invested = await cur.fetchone()
+        investor_count = await self.bot.pool.fetchrow("SELECT COUNT(*) FROM e_invests WHERE stockid = $1", playerstock[0])
+        sum_invested = await self.bot.pool.fetchrow("SELECT SUM(invested) FROM e_invests WHERE stockid = $1", playerstock[0])
         tl = self.bot.utc_calc(playerstock[5])
         view = Confirm()
-        msg = await ctx.send(f"**Are you sure you want to delete your stock?**\nStock name: {playerstock[1]}, Stock ID: {playerstock[0]}, Current points: {playerstock[2]}\nInvestors: {investor_count[0]}, Total amount invested: ${sum_invested[0]}\nCreated {tl} ago\n__Investments will not be deleted. Investors will be refunded the amount they invested. You will not be refunded.__", view=view)
+        msg = await ctx.send(f"**Are you sure you want to delete your stock?**\nStock name: {playerstock[1]}, Stock ID: {playerstock[0]}, Current points: {playerstock[2]}\nInvestors: {tuple(investor_count)[0]}, Total amount invested: ${tuple(sum_invested)[0]}\nCreated {tl} ago\n__Investments will not be deleted. Investors will be refunded the amount they invested. You will not be refunded.__", view=view)
         await view.wait()
         if view.value is None:
             return await msg.edit(f"Timed out after 3 minutes. Your stock wasn't deleted.")
         elif view.value:
-            await self.bot.db.execute("DELETE FROM e_stocks WHERE ownerid = ?",(ctx.author.id,))
+            await self.bot.pool.execute("DELETE FROM e_stocks WHERE ownerid = $1", ctx.author.id)
             await msg.delete()
             await ctx.reply('👍')
         else:
@@ -242,7 +235,7 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
                         await ctx.reply('👍')
                     except:
                         await ctx.send('👍')
-                    await self.bot.db.execute("UPDATE e_stocks SET ",(name, ctx.author.id,))
+                    await self.bot.pool.execute("UPDATE e_stocks SET name = $1 WHERE ownerid = $2", name, ctx.author.id)
             
     @commands.group(invoke_without_command=True)
     async def invest(self, ctx, name_or_id, amount):
@@ -255,25 +248,16 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
             await ctx.send("I couldn't find that stock. Double check the name/ID.")
             return
             
-        cur = await self.bot.db.execute("SELECT * FROM e_invests WHERE stockid = ? AND userid = ?",(stock[0],ctx.author.id,))
-        investment = await cur.fetchone()
-        if investment is not None:
+        investment = await self.bot.pool.fetchrow("SELECT * FROM e_invests WHERE stockid = $1 AND userid = $2", stock[0],ctx.author.id)
+        if tuple(investment) is not None:
             await ctx.send("You're already invested in this stock.")
             return
-        # Getting the stock again and updating it first prevents it from being exploited. lets do that
-        cur = await self.bot.db.execute("SELECT * FROM e_stocks WHERE stockid = ?",(name_or_id,))
-        stock = await cur.fetchone()
-        if stock is None:
-            name_or_id = name_or_id.upper()
-            cur = await self.bot.db.execute("SELECT * FROM e_stocks WHERE name = ?",(name_or_id,))
-            stock = await cur.fetchone()
+        stock = await self.bot.get_stock(name_or_id) # Getting the stock again?!?!?
         am = random.uniform(0.1,0.5)
         am = round(am,2)
-        await self.bot.db.execute("UPDATE e_stocks SET points = (points + ?) WHERE stockid = ?",(am, name_or_id,))
-        await self.bot.db.execute("UPDATE e_stocks SET points = (points + ?) WHERE name = ?",(am, name_or_id,))
-        #(stockid int, userid int, invested double, stockname text, invested_at double, invested_date blob)
-        rn = discord.utils.utcnow()
-        await self.bot.db.execute("INSERT INTO e_invests VALUES (?, ?, ?, ?, ?, ?)",(stock[0], ctx.author.id, amount, stock[1], stock[2],rn,))
+        await self.bot.pool.execute("UPDATE e_stocks SET points = (points + $1) WHERE stockid = $2", am, name_or_id)
+        await self.bot.pool.execute("UPDATE e_stocks SET points = (points + $1) WHERE name = $2", am, name_or_id)
+        await self.bot.pool.execute("INSERT INTO e_invests VALUES ($1, $2, $3, $4)", stock[0], ctx.author.id, amount, stock[2])
         await player.update_balance(amount*-1, ctx=ctx)
         await self.bot.stats.add('totalstocksInvested')
         await ctx.send(f"Invested ${amount} in **{stock[1]}** at {round(stock[2], 2)} points!")
@@ -282,26 +266,24 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
     async def sell(self, ctx, name_or_id):
         name_or_id = name_or_id.upper()
         player = await Player.get(ctx.author.id, self.bot)
-        cur = await self.bot.db.execute("SELECT * FROM e_invests WHERE stockname = ? AND userid = ?",(name_or_id,ctx.author.id,))
-        investment = await cur.fetchone()
-        if investment is None:
-            cur = await self.bot.db.execute("SELECT * FROM e_invests WHERE stockid = ? AND userid = ?",(name_or_id,ctx.author.id,))
-            investment = await cur.fetchone()
-            if investment is None:
+        investment = await self.bot.pool.fetchrow("SELECT * FROM e_invests WHERE stockname = $1 AND userid = $2", name_or_id,ctx.author.id)
+        if tuple(investment) is None:
+            investment = await self.bot.pool.fetchrow("SELECT * FROM e_invests WHERE stockid = $1 AND userid = $2", name_or_id,ctx.author.id)
+            if tuple(investment) is None:
                 return await ctx.send("I couldn't find that stock, or you're not invested in it. Double check the name or ID.")
             
-        c = await self.bot.db.execute("SELECT * FROM e_stocks WHERE stockid = ?",(investment[0],))
-        stock = await c.fetchone()
+        stock = await self.bot.pool.fetchrow("SELECT * FROM e_stocks WHERE stockid = $1", tuple(investment)[0])
         if stock is None:
-            await ctx.send(f"This stock no longer exists. You will be refunded ${investment[2]} (the money you invested).")
-            await player.update_balance(int(investment[2]), ctx=ctx, ignore_total_earned=True)
-            await self.bot.db.execute("DELETE FROM e_invests WHERE stockname = ? AND userid = ?",(name_or_id, ctx.author.id,))
-            await self.bot.db.execute("DELETE FROM e_invests WHERE stockid = ? AND userid = ?",(name_or_id, ctx.author.id,))
+            await ctx.send(f"This stock no longer exists. You will be refunded ${tuple(investment)[2]} (the money you invested).")
+            await player.update_balance(int(tuple(investment)[2]), ctx=ctx, ignore_total_earned=True)
+            await self.bot.pool.execute("DELETE FROM e_invests WHERE stockname = $1 AND userid = $2", name_or_id, ctx.author.id)
+            await self.bot.pool.execute("DELETE FROM e_invests WHERE stockid = $1 AND userid = $2", name_or_id, ctx.author.id)
             return
-        points_at_investment = round(investment[4],2)
+        stock = tuple(stock)
+        points_at_investment = round(tuple(investment)[4],2)
         current_stock_points = round(stock[2],2)
-        amount_invested = int(investment[2])
-        money_to_pay = (current_stock_points - points_at_investment) * amount_invested
+        amount_invested = int(tuple(investment)[2])
+        money_to_pay = (current_stock_points - points_at_investment) * amount_invested #TODO fix me someday
         money_to_pay = int(money_to_pay)
         if money_to_pay > 0:
             summary = f"${money_to_pay} will be depositied into your account.\nYou invested ${round(amount_invested,2)}, at {points_at_investment} points. The current points is {current_stock_points}"
@@ -323,13 +305,10 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
         else:
             am = random.uniform(0.1,0.5)
             am = round(am,2)
-            await self.bot.db.execute("UPDATE e_stocks SET points = (points - ?) WHERE stockid = ?",(am, name_or_id,))
-            await self.bot.db.execute("UPDATE e_stocks SET points = (points - ?) WHERE name = ?",(am, name_or_id,))
+            await self.bot.pool.execute("UPDATE e_stocks SET points = (points - $1) WHERE stockid = $2", am, stock[0])
             await player.update_balance(money_to_pay, ctx=ctx)
             if money_to_pay < 0: await self.bot.stats.add('totalinvestLost', (abs(money_to_pay))) # adds to totalinvestLost stat if amount is negative (player lost money)
-            await self.bot.db.execute("DELETE FROM e_invests WHERE userid = ? AND stockid = ?",(ctx.author.id, name_or_id,))
-            await self.bot.db.execute("DELETE FROM e_invests WHERE userid = ? AND stockname = ?",(ctx.author.id, name_or_id,))
-
+            await self.bot.pool.execute("DELETE FROM e_invests WHERE userid = $1 AND stockid = $2", ctx.author.id, stock[0])
             await ctx.reply('👍')
 
             ach = self.bot.get_cog('achievements')
@@ -344,7 +323,6 @@ class stocks(commands.Cog, command_attrs=dict(name='Stocks')):
         for r in msg.reactions: 
             try:await r.remove()
             except: pass
-        await self.bot.db.commit()
         
 async def setup(bot):
     await bot.add_cog(stocks(bot))

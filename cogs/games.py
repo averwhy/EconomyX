@@ -1,13 +1,244 @@
 import random
 import asyncio
+import logging
 from .utils.botviews import X
 from .utils import player as Player
 import discord
 from discord.ext import commands
 from discord.ext.commands.cooldowns import BucketType
+from typing import Union
+from .utils.errors import NotAPlayerError
 OWNER_ID = 267410788996743168
 
-class games(commands.Cog):
+log = logging.getLogger(__name__)
+
+class Card:
+    def __init__(self, rank, suit):
+        self.rank = rank
+        self.suit = suit
+    def __str__(self):
+        return f"{self.rank} of {self.suit}"
+class Deck:
+    def __init__(self):
+        ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
+        suits = ['Hearts', 'Diamonds', 'Clubs', 'Spades']
+        self.cards = [Card(rank, suit) for rank in ranks for suit in suits]
+    def shuffle(self):
+        random.shuffle(self.cards)
+    def deal(self, amount: int = 1) -> Union[Card, list[Card]]:
+        result = []
+        for i in range(amount):
+            result.append(self.cards.pop())
+        return result if amount>1 else result[0]
+    @staticmethod
+    def get_values(cards: Union[Card, list[Card]]) -> int:
+        ace_in_results = False
+        total_value = 0
+        if not isinstance(cards, list): cards = [cards]
+        for card in cards:
+            if card.rank not in ('J','Q','K','A'):
+                total_value += int(card.rank)
+                continue
+            elif card.rank == 'A':
+                ace_in_results = True
+                total_value += 11
+                continue
+            else:
+                total_value += 10 # its either a J, Q or K
+                continue
+        if ace_in_results and len(cards) > 1:
+            if total_value > 21:
+                # 11 was added to the total, so we will subtract 10
+                # this way it has a value of 1
+                total_value -= 10
+            else:
+                #the value is below 21, no need to change the value
+                pass
+        
+        return total_value
+                
+
+class Blackjack(discord.ui.View):
+    def __init__(self, bot, ctx: commands.Context, owner: Player.player, bet_amount):
+        super().__init__()
+        self.bot = bot
+        self.ctx = ctx
+        self.file = discord.File("./cogs/assets/cards-clipart.png", filename="cards.png")
+        self.player = owner
+        self.player_bet = bet_amount
+        self.player_hand = []
+        self.dealer_hand = []
+
+        #Dealing
+        self.deck = deck = Deck()
+        deck.shuffle()
+        self.player_hand = deck.deal(2)
+        self.dealer_hand = deck.deal(2)
+
+    @property
+    def dealer_total(self):
+        return Deck.get_values(self.dealer_hand)
+    
+    @property
+    def player_total(self):
+        return Deck.get_values(self.player_hand)
+
+    async def create_embed(self) -> discord.Embed:
+        embed = discord.Embed(title="Blackjack")
+        p_cards = ", ".join([f"{str(c)}" for c in self.player_hand])
+        embed.add_field(name="Player cards", value=f"{p_cards} ({Deck.get_values(self.player_hand)})")
+        embed.add_field(name="Dealer cards", value=f"{str(self.dealer_hand[0])}, ?", inline=False)
+        embed.set_thumbnail(url="attachment://cards.png")
+        self.embed = embed
+        return embed
+
+    async def update_embed(self, interaction: discord.Interaction, message_text: str = None, show_dealer_cards: bool = False) -> None:
+        embed = self.embed if self.embed != interaction.message.embeds[0] else interaction.message.embeds[0]
+        p_cards = ", ".join([f"{str(c)}" for c in self.player_hand])
+        embed.set_field_at(0, name="Player cards", value=f"{p_cards} ({Deck.get_values(self.player_hand)})")
+        if show_dealer_cards:
+            d_cards = ", ".join([f"{str(c)}" for c in self.dealer_hand])
+            embed.set_field_at(1, name="Dealer cards", value=f"{d_cards} ({Deck.get_values(self.dealer_hand)})", inline=False)
+        else: embed.set_field_at(1, name="Dealer cards", value=f"{str(self.dealer_hand[0])}, ?", inline=False)
+        self.embed.set_thumbnail(url="attachment://cards.png")
+        try:
+            await interaction.response.defer()
+        except discord.errors.InteractionResponded:
+            pass
+        finally:
+            await interaction.message.edit(content=message_text, embed=embed, view=self)
+
+    async def win(self, interaction: discord.Interaction, button_clicked: int):
+        self.embed.color = discord.Color.green()
+        self.embed.set_footer(text=f"You won ${self.player_bet}!")
+        self.disable()
+        self.children.pop(2)
+        self.style_button(button_clicked, discord.ButtonStyle.success)
+        await self.player.update_balance(self.player_bet, self.ctx)
+        await self.update_embed(interaction, message_text=f"{str(self.player)} won!", show_dealer_cards=True)
+        self.stop()
+    
+    async def lose(self, interaction: discord.Interaction, button_clicked: int):
+        self.embed.color = discord.Color.red()
+        self.embed.set_footer(text=f"You lost ${self.player_bet}")
+        self.disable()
+        self.children.pop(2)
+        self.style_button(button_clicked, discord.ButtonStyle.success)
+        await self.player.update_balance(self.player_bet*-1, self.ctx)
+        await self.bot.stats.add('totalbjLost', (abs(self.player_bet))) # adds to totalbjLost stat
+        await self.update_embed(interaction, message_text=f"{str(self.player)} lost.", show_dealer_cards=True)
+        self.stop()
+    
+    async def push(self, interaction: discord.Interaction, button_clicked: int):
+        self.embed.color = discord.Color.yellow()
+        self.embed.set_footer(text=(f"Push! You earn ${abs((self.player_bet) * 0.5)}"))
+        self.disable()
+        self.children.pop(2)
+        self.style_button(button_clicked, discord.ButtonStyle.secondary)
+        await self.player.update_balance(abs(self.player_bet*0.5), self.ctx)
+        #await interaction.message.edit(content=f"Push!", attachments=[], embed=self.embed, view=self)
+        await self.update_embed(interaction, message_text=f"{str(self.player)} pushed!", show_dealer_cards=True)
+        self.stop()
+
+    async def blackjack(self, message: discord.Message):
+        self.embed.color = discord.Color.brand_green()
+        self.embed.set_footer(text=f"BLACKJACK! You won ${abs(self.player_bet)}")
+        self.embed.set_thumbnail(url='attachment://cards.png')
+        d_cards = ", ".join([f"{str(c)}" for c in self.dealer_hand])
+        self.embed.set_field_at(1, name="Dealer cards", value=f"{d_cards} ({Deck.get_values(self.dealer_hand)})", inline=False)
+        self.disable()
+        self.children.pop(2)
+        await self.player.update_balance(abs(self.player_bet), self.ctx)
+        await message.edit(content=f"BLACKJACK! {str(self.player)}", attachments=[], embed=self.embed, view=self)
+        self.stop()
+
+    def style_button(self, num, style: discord.ButtonStyle):
+        self.children[num].style = style
+
+    def disable(self, stop_at=-1, except_for=-1, only=-1, styles=discord.ButtonStyle.gray):
+        iter = 0
+        for i in self.children:
+            if only != -1:
+                if iter == only:
+                    i.disabled = True
+                    i.style=styles
+                    break
+                else:
+                    iter+=1
+            else:
+                if iter == stop_at: break
+                if iter == except_for: continue
+                i.disabled = True
+                i.style=styles
+                iter += 1
+
+    @discord.ui.button(label='Hit', style=discord.ButtonStyle.primary)
+    async def hit(self, interaction: discord.Interaction, button: discord.ui.Button):
+        try:
+            new_card = self.deck.deal()
+            self.player_hand.append(new_card)
+            if self.player_total == 21:
+                await self.blackjack(interaction.message)
+                await interaction.response.defer()
+                self.stop()
+            if self.player_total >= 22:
+                await self.lose(interaction, 0)
+                self.stop()
+            if self.player_total < 21:
+                #Continue playing
+                self.disable(only=2) # remove cancel button
+                await self.update_embed(interaction)
+        except Exception as e:
+            log.error(f"error in hit: {e}")
+        
+    
+    @discord.ui.button(label='Stand', style=discord.ButtonStyle.primary)
+    async def stand(self, interaction: discord.Interaction, button: discord.ui.Button,):
+        #We are presuming that the player total is not at or above 21,
+        #as it is handled before
+        try:
+            if self.dealer_total <= 17:
+                #Dealer draws
+                #Reveal cards first
+                self.disable()
+                await self.update_embed(interaction, show_dealer_cards=True)
+                try: await interaction.response.defer()
+                except: pass
+                while not (self.dealer_total >= 17) or not (self.dealer_total <= 22):
+                    new_card = self.deck.deal()
+                    self.dealer_hand.append(new_card)
+                    await asyncio.sleep(1.5)
+                    if self.dealer_total == 21:
+                        #Dealer blackjack
+                        await self.lose(interaction, 1)
+                        return
+                    if self.dealer_total >= 22:
+                        #Dealer bust
+                        await self.win(interaction, 1)
+                        return
+                    await self.update_embed(interaction, show_dealer_cards=True)
+            #So now we compare player with dealer
+            if self.dealer_total > self.player_total:
+                #dealer won
+                await self.lose(interaction, 1)
+                self.stop()
+            elif self.dealer_total < self.player_total:
+                await self.win(interaction, 1)
+                self.stop()
+            else: #Theyre equal
+                await self.push(interaction, 1)
+                self.stop()
+        except Exception as e:
+            log.error(f"error in stand: {e}")
+
+        
+    @discord.ui.button(label='Cancel', style=discord.ButtonStyle.danger)
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.player.id: return await interaction.response.send_message("This isn't your game of Blackjack.", ephemeral=True)
+        self.stop()
+        await interaction.message.delete()
+
+class games(commands.Cog, command_attrs=dict(name='Games')):
     """
     Money making games. These are all gambling games at the moment.
     """
@@ -27,6 +258,11 @@ class games(commands.Cog):
     async def on_command_completion(self, ctx):
         await Player.get(ctx.author.id, self.bot)
         await self.bot.stats.user_add_games(ctx.author)
+
+    async def cog_command_error(self, ctx, error: Exception):
+        if isinstance(error, NotAPlayerError):
+            return await ctx.send("You dont have a profile! Get one with `e$register`.")
+        await ctx.reply(f"A error occured with your game...\n{error}")
     
     @commands.cooldown(1,2,BucketType.user)
     @commands.command(aliases=["b"], description="Bets money. There is a 50/50 chance on winning and losing.")
@@ -48,7 +284,7 @@ class games(commands.Cog):
         player = await Player.get(ctx.author.id, self.bot)
         amount = player.validate_bet(amount, max=10000)
         
-        confirm = await ctx.send("Choose one of the 3 colors to bet on `(🔴: 2x, ⚫: 2x, 🟢: 35x)`:")
+        confirm = await ctx.send("Choose one of the 3 colors to bet on `(🔴: 2x, ⚫: 2x, 🟢: 25x)`:")
         rlist = ['🔴', '⚫', '🟢', '❌']
         for r in rlist:
             await confirm.add_reaction(r)
@@ -59,21 +295,23 @@ class games(commands.Cog):
         except asyncio.TimeoutError:
             await confirm.delete()
             return await ctx.reply("Timed out after 60s.")
-        result = random.choices(rlist, weights=(48.6, 48.6, 2.799999999999997, 0), k=1)
+        result = random.choices(rlist, weights=(49.4, 49.4, 1.2, 0), k=1)
+        try: await confirm.clear_reactions()
+        except discord.Forbidden: pass
         if str(reaction.emoji) == rlist[3]: #cancel
             await confirm.delete()
             return await ctx.reply("Cancelled, you did not lose/gain any money.")
         if result[0] == rlist[2]: # green
-            newamount = amount * 35
+            newamount = amount * 25
             await player.update_balance(newamount, ctx)
-            return await ctx.send(f"Your choice: {str(reaction.emoji)}, result: {str(result[0])}\n**You won BIG!**\nMoney earned: ${int(amount * 35)} (`${int(amount)} x 35`)")
+            return await ctx.send(f"Your choice: {str(reaction.emoji)}, result: {str(result[0])}\n**You won ${int(amount * 35)}!** <a:cookdance:829764800758022175>")
         elif reaction.emoji == result[0]:
             await player.update_balance(amount, ctx)
-            return await ctx.send(f"Your choice: {str(reaction.emoji)}, result: {str(result[0])}\n**You won!**\nMoney earned: ${int(amount)}")
+            return await ctx.send(f"Your choice: {str(reaction.emoji)}, result: {str(result[0])}\nYou won ${amount}!")
         else:
             await player.update_balance((0-amount), ctx)
             await self.bot.stats.add('totalrouletteLost', (abs(amount))) # adds to totalrouletteLost stat
-            return await ctx.send(f"Your choice: {str(reaction.emoji)}, result: {str(result[0])}\n**You lost.**\nMoney lost: ${int(amount)}")
+            return await ctx.send(f"Your choice: {str(reaction.emoji)}, result: {str(result[0])}\nYou lost ${int(amount)}.")
         
     
     @commands.group(aliases=["rps"],invoke_without_command=True, description="Rock paper scissors.")
@@ -154,29 +392,25 @@ class games(commands.Cog):
         - The dealer 'busts' (obtains a card total higher than 21) when drawing another card.
         
         When you 'hit', you're drawing another card. This should be done when your card value total is around 14 or lower.
-        When you 'stand', you're keeping the cards you currently have. The dealer will then either reveal their hidden card (if *their*  card total is 17 or higher), or draw another (if their card total is 16 or lower.)"""
-        from .utils.botviews import Blackjack
-        
+        When you 'stand', you're keeping the cards you currently have. The dealer will then either reveal their hidden card (if *their*  card total is 17 or higher), or draw another (if their card total is 16 or lower.)"""        
         player = await Player.get(ctx.author.id, self.bot)
-        amount = player.validate_bet(amount, minimum=10, max=10000)
+        amount = player.validate_bet(amount, minimum=1, max=10000)
         
-        bjview = Blackjack(self.bot, ctx.author, amount) # This view does all the work :)
-        embed = discord.Embed(title="Blackjack")
-        embed.add_field(name="Your cards", value=f"{bjview.player_cards[0]}, {bjview.player_cards[1]} ({bjview.player_total})")
-        embed.add_field(name="Dealer cards", value=f"?, {bjview.dealer_cards[1]} ({bjview.dealer_hidden_total})", inline=False)
-        file = discord.File("./cogs/assets/cards-clipart.png", filename="cards.png")
-        embed.set_thumbnail(url="attachment://cards.png")
-        game_message = await ctx.send(file=file, embed=embed, view=bjview)
+        bjview = Blackjack(self.bot, ctx, player, amount)
+        embed = await bjview.create_embed()
+        game_msg = await ctx.send(file=bjview.file, embed=embed, view=bjview)
         if bjview.player_total == 21:
-            await bjview.blackjack(game_message)
+            await asyncio.sleep(0.25)
+            await bjview.blackjack(game_msg)
         if bjview.player_total >= 22:
             await bjview.lose()
+        if bjview.dealer_total >= 22:
+            await bjview.win()
         if await bjview.wait():
-            try: await game_message.delete()
-            except discord.NotFound: pass # it wouldnt be a forbidden error, since its the bot's own message. it could only
+            # try: await game_msg.delete()
+            # except discord.NotFound: pass # it wouldnt be a forbidden error, since its the bot's own message. it could only
             # be a not found if the message was already deleted before it timed out
-            await ctx.send(f"{ctx.author.mention}, your blackjack game timed out.")
-        
+            await ctx.send(f"{ctx.author.mention}, your blackjack game timed out.", delete_after=45)
 
     @commands.command()
     async def craps(self, ctx, amount):

@@ -5,7 +5,7 @@ from .utils import player as Player
 from .utils.errors import NotAPlayerError
 OWNER_ID = 267410788996743168
 
-class money_meta(commands.Cog):
+class money_meta(commands.Cog, command_attrs=dict(name='Money Meta')):
     """
     These commands are meta about money, such as pay or balance.
     """
@@ -26,7 +26,7 @@ class money_meta(commands.Cog):
             return await ctx.send("That player doesn't seem to have a profile.")
         try:
             await self.bot.transfer_money(ctx.author,user,amount)
-            await self.bot.db.execute("UPDATE e_users SET totalearnings = (totalearnings + ?) WHERE id = ?",(amount,user.id,))
+            await self.bot.pool.execute("UPDATE e_users SET totalearnings = (totalearnings + $1) WHERE id = $2", amount,user.id)
             await self.bot.stats.user_add_paid(ctx.author, amount)
             await ctx.reply("Transfer successful.")
         except Exception as e:

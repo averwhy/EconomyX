@@ -8,31 +8,32 @@ import humanize
 from datetime import datetime, timezone
 from discord.ext import commands, menus
 from discord.ext.commands.cooldowns import BucketType
-import aiosqlite
+import asyncpg
 import inspect
 from .utils import botmenus
 from .utils import player as Player
 from .utils.errors import NotAPlayerError
+
 OWNER_ID = 267410788996743168
+
 # Thanks to Kal for helping me out with this
 class HelpCommand(commands.HelpCommand):
 
     # This fires once someone does `<prefix>help`
     async def send_bot_help(self, mapping: Mapping[typing.Optional[commands.Cog], typing.List[commands.Command]]):
         ctx = self.context
-        pcolor = (await Player.get(ctx.author.id, ctx.bot)).profile_color
-        if pcolor is None: pcolor = discord.Color.dark_gray()
+        try: pcolor = (await Player.get(ctx.author.id, ctx.bot)).profile_color
+        except NotAPlayerError: pcolor = discord.Color.dark_gray()
         embed = discord.Embed(title="EconomyX Help", color=pcolor)
-        embed.set_footer(text=f"Do {ctx.clean_prefix}help [command] for more info")
+        embed.set_footer(text=f"Do {ctx.clean_prefix}help [command] or {ctx.clean_prefix}help [category] for more info")
         for cog, cmds in mapping.items():
             filtered = await self.filter_commands(cmds, sort=True)
             if filtered:
-                all_commands = "  ".join(f"`{c.name}`" for c in cmds)
+                all_commands = "  ".join(f"`{c.name}`" if not c.hidden else '' for c in cmds)
                 if cog and cog.description:
                     embed.add_field(name=cog.qualified_name,
                                     value=f"-> {all_commands}",
-                                    inline=False)
-
+                                    inline=True)
         await ctx.send(embed=embed)
 
     # This fires once someone does `<prefix>help <cog>`
@@ -43,10 +44,10 @@ class HelpCommand(commands.HelpCommand):
 
         entries = await self.filter_commands(cog.get_commands(), sort=True)
         for cmd in entries:
+            if cmd.hidden: continue
             embed.add_field(name=f"{ctx.clean_prefix}{cmd.name} {cmd.signature}",
                             value=f"{cmd.help or cmd.description}",
                             inline=False)
-
         await ctx.send(embed=embed)
 
     # This fires once someone does `<prefix>help <command>`
@@ -56,13 +57,11 @@ class HelpCommand(commands.HelpCommand):
         embed = discord.Embed(title=f"{ctx.clean_prefix}{command.qualified_name} {command.signature}",
                               description=f"{command.help or command.description}")
         embed.set_footer(text=f"Do {ctx.clean_prefix}help [command] for more info")
-
         await ctx.send(embed=embed)
 
     # This fires once someone does `<prefix>help <group>`
     async def send_group_help(self, group: commands.Group):
         ctx = self.context
-
         embed = discord.Embed(title=f"{ctx.clean_prefix}{group.qualified_name} {group.signature}",
                               description=group.help)
         embed.set_footer(text=f"Do {ctx.clean_prefix}help [command] for more help")
@@ -71,11 +70,9 @@ class HelpCommand(commands.HelpCommand):
             embed.add_field(name=f"{ctx.clean_prefix}{command.name} {command.signature}",
                             value=(command.description or command.help),
                             inline=False)
-
         await ctx.send(embed=embed)
 
-
-class misc(commands.Cog):
+class misc(commands.Cog, command_attrs=dict(name='Misc')):
     """These are miscellaneous bot commands, primarily meta about the bot."""
     def __init__(self,bot):
         self.bot = bot
@@ -103,25 +100,33 @@ class misc(commands.Cog):
         if pcolor is None: pcolor = discord.Color.random()
         embed = discord.Embed(color=pcolor)
         embed.add_field(name=f"{str(ctx.author)}'s prefix", value=prefixdata)
+        embed.set_footer(text=f"To change prefix, use {ctx.clean_prefix}prefix set")
         await ctx.send(embed=embed)
     
     @prefix.command(name="set",aliases=["new","change","s","n","c"],description="Allows you to change the prefix you use with the bot. Note that this is only per-user.")
     async def _set(self, ctx, newprefix = ''):
+        """Changes the prefix that you use with the bot."""
         if len(newprefix) > 5:
             return await ctx.send("That prefix is too long.")
         
-        c = await self.bot.db.execute("SELECT * FROM e_prefixes WHERE userid = ?",(ctx.author.id,))
-        data = await c.fetchone()
-        if data is None:
-            await self.bot.db.execute("INSERT INTO e_prefixes VALUES (?, ?, ?)",(newprefix, ctx.author.id, discord.utils.utcnow(),))
+        data = await self.bot.pool.fetchrow("SELECT * FROM e_prefixes WHERE userid = $1", ctx.author.id)
+        if tuple(data) is None:
+            await self.bot.pool.execute("INSERT INTO e_prefixes(userid, prefix, setwhen) VALUES ($1, $2, $3)", ctx.author.id, newprefix, discord.utils.utcnow())
         else:
-            await self.bot.db.execute("UPDATE e_prefixes SET prefix = ? WHERE userid = ?",(newprefix, ctx.author.id,))
-        await self.bot.db.commit()
+            await self.bot.pool.execute("UPDATE e_prefixes SET prefix = $1 WHERE userid = $2", newprefix, ctx.author.id)
         self.bot.prefixes[ctx.author.id] = newprefix
         if newprefix == '':
-            await ctx.send(f"Your new prefix is nothing. Do note this is your prefix, and no one elses.")
+            await ctx.reply(f"Your new prefix is... nothing? <:meowshrug:789970107458781207> Anyway, do note this is your prefix, and no one elses")
             return
-        await ctx.send(f"Your new prefix is `{newprefix}`. Do note this is your prefix, and no one elses.")
+        await ctx.reply(f"Your new prefix is `{newprefix}`. Do note this is your prefix, and no one elses")
+    
+    @prefix.command(name='reset')
+    async def _reset(self, ctx):
+        """Resets to default prefix."""
+        await self.bot.pool.fetchrow("DELETE FROM e_prefixes WHERE userid = $1", ctx.author.id)
+        try: self.bot.prefixes.pop(ctx.author.id)
+        except KeyError: return await ctx.send("Your prefix is already set the default prefix <:meowshrug:789970107458781207>")
+        await ctx.send("Your prefix was reset to the default prefix of `e$`")
     
     @commands.cooldown(1,10,BucketType.channel)
     @commands.command(aliases=["information"])
@@ -132,32 +137,23 @@ class misc(commands.Cog):
             color = player.profile_color
         except:
             color = discord.Color.blurple()
-        c = await self.bot.db.execute("SELECT SUM(bal) FROM e_users")
-        money_total = await c.fetchone()
-        c = await self.bot.db.execute("SELECT COUNT(id) FROM e_users")
-        total_db_users = await c.fetchone()
-        c = await self.bot.db.execute("SELECT COUNT(*) FROM e_stocks")
-        total_stocks = await c.fetchone()
-        c = await self.bot.db.execute("SELECT SUM(invested) FROM e_invests")
-        total_invested = await c.fetchone()
-        c = await self.bot.db.execute("SELECT COUNT(*) FROM e_invests")
-        num_invested = await c.fetchone()
+        money_total = await self.bot.pool.fetchrow("SELECT SUM(bal) FROM e_users")
+        total_db_users = await self.bot.pool.fetchrow("SELECT COUNT(id) FROM e_users")
+        total_stocks = await self.bot.pool.fetchrow("SELECT COUNT(*) FROM e_stocks")
+        total_invested = await self.bot.pool.fetchrow("SELECT SUM(invested) FROM e_invests")
+        num_invested = await self.bot.pool.fetchrow("SELECT COUNT(*) FROM e_invests")
         desc = f"""**Guilds:** {len(self.bot.guilds)}
-        **Total Users:** {len(self.bot.users)}
-        **Commands:** {len(self.bot.commands)}
-        **Current Money Total:** ${money_total[0]}
-        **Total Stocks:** {total_stocks[0]}
-        **Total number of invests:** {num_invested[0]}
-        **Total money invested in stocks:** ${total_invested[0]}
-        **Number of users in database:** {total_db_users[0]}
-        **Database changes in this session:** {self.bot.db.total_changes}
-        **Active database transaction:** {self.bot.db.in_transaction}
-        **Top.gg link (vote me pls :>): https://top.gg/bot/780480654277476352**
+        **Number of players:** {tuple(total_db_users)[0]}
+        **Current Money Total:** ${humanize.intcomma(tuple(money_total)[0])}
+        **Total Stocks:** {tuple(total_stocks)[0]}
+        **Total number of invests:** {tuple(num_invested)[0]}
+        **Total money invested in stocks:** ${humanize.intcomma(tuple(total_invested)[0])}
+        **Top.gg link (vote me pls :>)**: https://top.gg/bot/780480654277476352
         **Support Server:** *See invite above*
         **Protip: See a live count of the users, guilds, and players in the support server!*
         """
         embed = discord.Embed(title="EconomyX Info",description=desc,color=color)
-        embed.set_footer(text=f"Made with Python {platform.python_version()}, discord.py {discord.__version__}, and aiosqlite {aiosqlite.__version__}",icon_url="https://images-ext-1.discordapp.net/external/0KeQjRAKFJfVMXhBKPc4RBRNxlQSiieQtbSxuPuyfJg/http/i.imgur.com/5BFecvA.png")
+        embed.set_footer(text=f"Made with Python {platform.python_version()}, discord.py {discord.__version__}, and PostgreSQL {asyncpg.__version__}",icon_url="https://images-ext-1.discordapp.net/external/0KeQjRAKFJfVMXhBKPc4RBRNxlQSiieQtbSxuPuyfJg/http/i.imgur.com/5BFecvA.png")
         await ctx.send(content="https://discord.gg/epQZEp933x", embed=embed)
     
     @commands.command()
@@ -188,22 +184,22 @@ class misc(commands.Cog):
     @commands.command()
     async def ping(self, ctx):
         """Shows EconomyX's latency/connection to Discord."""
-        em = discord.PartialEmoji(name="loading",animated=True,id=782995523404562432)
+        try: pcolor = (await Player.get(ctx.author.id, ctx.bot)).profile_color
+        except NotAPlayerError: pcolor = discord.Color.random()
         start = time.perf_counter()
-        message = await ctx.send(embed=discord.Embed(title=f"Ping... {em}",color=discord.Color.random()))
+        message = await ctx.send(embed=discord.Embed(title="<a:ppCircle:1277157700421161083>", color=discord.Color.random()))
         end = time.perf_counter()
         start2 = time.perf_counter()
-        await self.bot.db.commit()
+        await self.bot.pool.fetchrow("SELECT * FROM e_users")
         end2 = time.perf_counter()
         duration = round(((end - start) * 1000),1)
         db_duration = round(((end2 - start2) * 1000),1)
-        newembed = discord.Embed(title="Pong!",color=discord.Color.random())
+        newembed = discord.Embed(title="Pong!",color=pcolor)
         ws = round((self.bot.latency * 1000),1)
         newembed.add_field(name="Typing",value=f"{duration}ms")
         newembed.add_field(name="Websocket",value=f"{ws}ms")
         newembed.add_field(name="Database",value=f"{db_duration}ms")
         await message.edit(embed=newembed)
-
         
     # CREDIT TO RAPPTZ FOR THIS
     # https://github.com/Rapptz/RoboDanny/blob/rewrite/cogs/meta.py#L355-L393
@@ -246,7 +242,7 @@ class misc(commands.Cog):
         await p.start(ctx)
     
     @commands.command()
-    @commands.cooldown(1, 15, BucketType.user)
+    @commands.cooldown(1, 60, BucketType.user)
     async def news(self, ctx):
         channel = self.bot.get_channel(self.bot.updates_channel)
         if channel is None:
@@ -261,6 +257,15 @@ class misc(commands.Cog):
         embed.set_footer(text=f"Set by {isdev}{str(latest_message.author)}, {humanize.precisedelta(latest_message.created_at.astimezone().replace(tzinfo=None))} ago", icon_url=latest_message.author.avatar.url)
         await ctx.send(embed=embed)
 
+    @commands.command(hidden=True)
+    @commands.cooldown(1, 60, BucketType.channel)
+    async def reallylongcat(self, ctx):
+        return await ctx.send("<:lc_0_0:818242033897832488>\n<:lc_0_1:818242049027342406>\n<:lc_0_2:818242062645854249>\n<:lc_0_3:818242081788002346>\n<:lc_0_4:818242096041427004>\n<:lc_0_5:818242107152007208>")
+    
+    @commands.command(hidden=True)
+    @commands.cooldown(1, 60, BucketType.channel)
+    async def reallywidecat(self, ctx):
+        return await ctx.send("<:swag1:782786337387315221><:swag2:782786368123306014><:swag3:782786380954730536>")
         
 async def setup(bot):
     await bot.add_cog(misc(bot))

@@ -1,17 +1,40 @@
+import asyncio
 import discord
-import sys
+import sys, time, random
+from discord.ext import menus
 from discord.ext import commands, tasks
 from .utils import player as Player
 import aiosqlite
-from datetime import datetime, timedelta
 import traceback
 import humanize
+import logging
 from discord import Webhook
 import aiohttp
 from .utils.errors import NotAPlayerError
 OWNER_ID = 267410788996743168
+SUPPORT_SERVER = 798014878018174976
+log = logging.getLogger(__name__)
 
-class devtools(commands.Cog):
+
+class EmojiListSource(menus.ListPageSource):
+    def __init__(self, data):
+        super().__init__(data, per_page=1)
+
+    async def format_page(self, menu, entry):
+        #Takes a list of embeds
+        return entry.set_footer(text=f"Page {(menu.current_page * self.per_page) + 1}/{self.get_max_pages()}")
+
+success_emojis = ['<:YEP:819979975096533032>','<a:cookdance:829764800758022175>','<a:CRANKING:1152119357179170816>',
+                '<:Pepege:821906846192631849>','<a:om:1223345179373600839>','<a:om62:1210662179813068851>',
+                '<a:reow:1210662056450072656>','<a:bih:1212526076106907728>','<a:YESS:1238651990939144222>',
+                '<a:snod:798165766888488991>','<:peepoGlad:819979951876079657>','<:5Head:819980082873237536>']
+failed_emojis = ['<a:AwareMan:1122794710721908777>','<:Dentge:1154444232304635986>','<:omeStare:1224964966050824284>',
+                '<:painnnnn:837004732450734190>','<:blobweary:809765011152568330>','<a:SOYSCREAM:1091233925667487814>',
+                '<:Weirdge:821906833848533075>','<:TrollAware:1213770138780962877>','<a:Alright:1212526220655464510>,'
+                '<a:forsnotL:1210663171765968918>','<a:forsenFaint:1210662767468748820>','<a:sno:784149860726865930>',
+                '<a:no:798969459645218879>','<a:ppPoof:1212154512467558520>']
+
+class devtools(commands.Cog, command_attrs=dict(name='Devtools', hidden=True)):
     """
     Dev commands. thats really it
     """
@@ -23,20 +46,20 @@ class devtools(commands.Cog):
         self.database_backup_task.start()
     
     async def cog_unload(self):
-        await self.database_backup_task.cancel()
+        try: await self.database_backup_task.cancel()
+        except TypeError: pass
 
-    @tasks.loop(minutes=10)
+    @tasks.loop(minutes=10) #TODO fix later
     async def database_backup_task(self):
-        try:
-            await self.bot.db.commit()
-            self.bot.backup_db = await aiosqlite.connect('ecox_backup.db')
-            await self.bot.db.backup(self.bot.backup_db)
-            await self.bot.backup_db.commit()
-            await self.bot.backup_db.close()
-            return
-        except Exception as e:
-            print(f"An error occured while backing up the database:\n`{e}`")
-            return
+        pass
+    #     try:
+    #         self.bot.backup_db = await aiosqlite.connect('ecox_backup.db')
+    #         await self.bot.db.backup(self.bot.backup_db)
+    #         await self.bot.backup_db.close()
+    #         return
+    #     except Exception as e:
+    #         print(f"An error occured while backing up the database:\n`{e}`")
+    #         return
     
     async def cog_check(self,ctx):
         return ctx.author.id == OWNER_ID
@@ -46,69 +69,52 @@ class devtools(commands.Cog):
         await self.bot.process_commands(after)
     
     @commands.Cog.listener()
-    async def on_message(self, message):
-        for m in message.mentions:
-            if m.id == self.bot.user.id and message.author.id == OWNER_ID:
-                return await message.reply("Fuck off")
-    
-    @commands.Cog.listener()
     async def on_guild_join(self, guild):
         guildstatvc = await self.bot.fetch_channel(798014995496960000)
         playerstatvc = await self.bot.fetch_channel(809977048868585513)
         await guildstatvc.edit(name=f"Guilds: {len(self.bot.guilds)}")
-        userstatvc = await self.bot.fetch_channel(798018451330433044)
-        await userstatvc.edit(name=f"Users: {len(self.bot.users)}")
-        c = await self.bot.db.execute("SELECT COUNT(*) FROM e_users")
-        total_db_users = await c.fetchone()
-        await playerstatvc.edit(name=f"Players (in DB): {total_db_users[0]}")
+        total_db_users = await self.bot.pool.fetchrow("SELECT COUNT(*) FROM e_users")
+        await playerstatvc.edit(name=f"Players: {tuple(total_db_users)[0]}")
         
         ts = humanize.precisedelta(guild.created_at.replace(tzinfo=None))
         msg = f"""+1 guild ```prolog
 Guild:           {guild.name}
 ID:              {guild.id}
-Owner:           {str(guild.owner)} ({guild.owner_id})
 Members:         {guild.member_count}
 Boost level:     {guild.premium_tier}
-Channels:        {len(guild.channels)}
-Roles:           {len(guild.roles)}
 Desc:            {(guild.description or 'None')}
 Created:         {ts} ago```
         """
         async with aiohttp.ClientSession() as session:
             webhook = Webhook.from_url(self.log_hook, session=session)
             await webhook.send(msg)
-        print(f"Joined new guild '{guild.name}' at {humanize.naturaldate(discord.utils.utcnow())}. New guild count: {len(self.bot.guilds)}")
+        log.info(f"Joined new guild '{guild.name}', new guild count: {len(self.bot.guilds)}")
         
     @commands.Cog.listener()
     async def on_guild_remove(self, guild):
+        if guild.owner is None or len(guild.name) <= 0: return
         guildstatvc = await self.bot.fetch_channel(798014995496960000)
         playerstatvc = await self.bot.fetch_channel(809977048868585513)
         await guildstatvc.edit(name=f"Guilds: {len(self.bot.guilds)}")
-        userstatvc = await self.bot.fetch_channel(798018451330433044)
-        await userstatvc.edit(name=f"Users: {len(self.bot.users)}")
-        c = await self.bot.db.execute("SELECT COUNT(*) FROM e_users")
-        total_db_users = await c.fetchone()
-        await playerstatvc.edit(name=f"Players (in DB): {total_db_users[0]}")
+        total_db_users = await self.bot.pool.fetchrow("SELECT COUNT(*) FROM e_users")
+        await playerstatvc.edit(name=f"Players: {tuple(total_db_users)[0]}")
         
         ts = humanize.precisedelta(guild.created_at.replace(tzinfo=None))
         msg = f"""-1 guild ```prolog
 Guild:           {guild.name}
 ID:              {guild.id}
-Owner:           {str(guild.owner)} ({guild.owner_id})
 Members:         {guild.member_count}
 Boost level:     {guild.premium_tier}
-Channels:        {len(guild.channels)}
-Roles:           {len(guild.roles)}
 Desc:            {(guild.description or 'None')}
 Created:         {ts} ago```
         """
         async with aiohttp.ClientSession() as session:
             webhook = Webhook.from_url(self.log_hook, session=session)
             await webhook.send(msg)
-        print(f"Left a guild '{guild.name}' at {humanize.naturaldate(discord.utils.utcnow())}. New guild count: {len(self.bot.guilds)}")
+        log.info(f"Left a guild '{guild.name}', new guild count: {len(self.bot.guilds)}")
 
     
-    @commands.group(invoke_without_command=True,hidden=True)
+    @commands.group(invoke_without_command=True,hidden=True, aliases=['dv'])
     async def dev(self, ctx):
         #bot dev commands
         await ctx.send("invalid subcommand <:PepePoint:759934591590203423>")
@@ -121,7 +127,7 @@ Created:         {ts} ago```
             await ctx.message.add_reaction("\U00002705")
         except Exception as error:
             await ctx.send(f"An error occured while force drawing: `{error}`")
-            print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
+            log.warning('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
             traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
             return
     
@@ -131,68 +137,38 @@ Created:         {ts} ago```
             guildstatvc = await self.bot.fetch_channel(798014995496960000)
             playerstatvc = await self.bot.fetch_channel(809977048868585513)
             await guildstatvc.edit(name=f"Guilds: {len(self.bot.guilds)}")
-            userstatvc = await self.bot.fetch_channel(798018451330433044)
-            await userstatvc.edit(name=f"Users: {len(self.bot.users)}")
-            c = await self.bot.db.execute("SELECT COUNT(*) FROM e_users")
-            total_db_users = await c.fetchone()
-            await playerstatvc.edit(name=f"Players (in DB): {total_db_users[0]}")
-        await ctx.send("Updated support server stats.")
+            total_db_users = await self.bot.pool.fetchrow("SELECT COUNT(*) FROM e_users")
+            await playerstatvc.edit(name=f"Players: {tuple(total_db_users)[0]}")
+        await ctx.send("Updated support server stats")
 
-    @dev.command()
-    async def status(self, ctx, *, text):
-        # Setting `Playing ` status
-        if text is None:
-            await ctx.send(f"{ctx.guild.me.status}")
-        if len(text) > 60:
-            await ctx.send("`Too long you pepega`")
-            return
-        try:
-            await self.bot.change_presence(activity=discord.Game(name=text))
-            await ctx.message.add_reaction("\U00002705")
-        except Exception as e:
-            await ctx.message.add_reaction("\U0000274c")
-            await ctx.send(f"`{e}`")
-
-    @dev.command(aliases=["fuckoff","die","halt","cease","shutdown"])
+    @dev.command(aliases=["fuckoff","die","halt","cease","shutdown","logout"])
     async def stop(self, ctx):
-        await ctx.send("bye lol")
-        print(f"Bot is being stopped by {ctx.message.author} ({ctx.message.id})")
-        await self.bot.db.commit()
-        await self.bot.db.close()
+        await ctx.send("<a:ppPoof:1212154512467558520>")
+        log.warning(f"Bot is being stopped by {ctx.message.author} ({ctx.author.id})")
+        await asyncio.wait_for(self.bot.pool.close(), timeout=45.0)
         await self.bot.close()
         
-    @dev.group(invoke_without_command=True)
-    async def sql(self, ctx):
-        await ctx.send("`Youre missing one of the below params:` ```md\n- fetchone\n- fetchall\n- run\n```") 
-            
-    @sql.command()
-    async def fetchone(self, ctx, *, statement):
-        try:
-            c = await self.bot.db.execute(statement)
-            data = await c.fetchone()
-            await self.bot.db.commit()
-            await ctx.send(data)
+    @dev.command()
+    async def sql(self, ctx, *, query):
+        # parser = argparse.ArgumentParser().add_argument('-s', '--search', action='store_true')
+        # do_search = parser.parse_args()
+        # print(args.verbose)
+        failed = False
+        error = ""
+        p1 = time.perf_counter()
+        try: 
+            result = await self.bot.pool.fetch(query)
         except Exception as e:
-            await ctx.send(f"```sql\n{e}\n```")
-            
-    @sql.command()
-    async def fetchall(self, ctx, *, statement):
-        try:
-            c = await self.bot.db.execute(statement)
-            data = await c.fetchall()
-            await self.bot.db.commit()
-            await ctx.send(data)
-        except Exception as e:
-            await ctx.send(f"```sql\n{e}\n```")
-
-    @sql.command()
-    async def run(self, ctx, *, statement):
-        try:
-            await self.bot.db.execute(statement)
-            await self.bot.db.commit()
-            await ctx.message.add_reaction("\U00002705")
-        except Exception as e:
-            await ctx.send(f"```sql\n{e}\n```")
+            failed = True
+            error = e
+        finally:
+            p2 = time.perf_counter()
+            perf = round((p2-p1)*1000,2)
+            if failed:
+                rfe = random.choice(failed_emojis)
+                return await ctx.send(f"{rfe} `{perf}s`: {error}")
+            rse = random.choice(success_emojis)
+            return await ctx.send(f"{rse} `{perf}ms`: {str(result)}")
             
     @dev.group(invoke_without_command=True)
     async def eco(self, ctx):
@@ -207,7 +183,7 @@ Created:         {ts} ago```
             await Player.get(ctx.author.id, self.bot)
         except NotAPlayerError:
             return await ctx.send("That player doesn't seem to have a profile.")
-        await self.bot.db.execute("UPDATE e_users SET bal = 100 WHERE id = ?",(user.id,))
+        await self.bot.pool.execute("UPDATE e_users SET bal = 100 WHERE id = $1", user.id)
         await ctx.send("Reset.")
         
     @eco.command()
@@ -217,7 +193,7 @@ Created:         {ts} ago```
             player = await Player.get(ctx.author.id, self.bot)
         except NotAPlayerError:
             return await ctx.send("That player doesn't seem to have a profile.")
-        await self.bot.db.execute("UPDATE e_users SET bal = (bal + ?) WHERE id = ?",(amount, user.id,))
+        await self.bot.pool.execute("UPDATE e_users SET bal = (bal + $1) WHERE id = $2", amount, user.id)
         await ctx.send(f"Success.\nNew balance: ${(player.balance + amount)}")
     
     @eco.command(name="set")
@@ -226,29 +202,46 @@ Created:         {ts} ago```
             await Player.get(ctx.author.id, self.bot)
         except NotAPlayerError:
             return await ctx.send("That player doesn't seem to have a profile.")
-        await self.bot.db.execute("UPDATE e_users SET bal = ? WHERE id = ?",(amount, user.id,))
+        await self.bot.pool.execute("UPDATE e_users SET bal = $1 WHERE id = $2", amount, user.id)
         await ctx.send("Success.")
         
-    @dev.command(aliases=["bu"])
+    @dev.command(aliases=["bu"], disabled=True)
     async def backup(self, ctx):
         try:
-            await self.bot.db.commit()
             self.bot.backup_db = await aiosqlite.connect('ecox_backup.db')
-            await self.bot.db.backup(self.bot.backup_db)
-            await self.bot.backup_db.commit()
-            await self.bot.backup_db.close()
-            await ctx.send("done, lol")
+            #await self.bot.pool.backup(self.bot.backup_db) #TODO fix me now
+            #await self.bot.backup_db.close()
+            #await ctx.send("done, lol")
             return
         except Exception as e:
             await ctx.send(f"An error occured while backing up the database:\n`{e}`")
             return
-        
-    @dev.command(hidden=True,name="stream")
+    
+    @dev.group(aliases=['s'], invoke_without_command=True)
+    async def status(self, ctx):
+        await ctx.send(f"Current status: {self.bot.status}")
+
+    @status.command(name="stream", aliases=['streaming'])
     async def streamingstatus(self, ctx, *, name):
         if ctx.author.id != 267410788996743168:
             return
-        await self.bot.change_presence(activity=discord.Streaming(name=name,url="https://twitch.tv/monstercat/"))
+        await self.bot.change_presence(activity=discord.Streaming(name=name,url="https://twitch.tv/avrwhy/"))
         await ctx.send("aight, done")
+    
+    @status.command()
+    async def playing(self, ctx, *, text):
+        # Setting `Playing ` status
+        if text is None:
+            await ctx.send(f"{ctx.guild.me.status}")
+        if len(text) > 60:
+            await ctx.send("Too long you pepega")
+            return
+        try:
+            await self.bot.change_presence(activity=discord.Game(name=text))
+            await ctx.message.add_reaction("\U00002705")
+        except Exception as e:
+            await ctx.message.add_reaction("\U0000274c")
+            await ctx.send(f"`{e}`")
         
     @dev.command()
     async def m(self, ctx):
@@ -258,5 +251,124 @@ Created:         {ts} ago```
         else:
             self.bot.maintenance = True
             return await ctx.send("Maintenence is now on.")
+        
+    @dev.command()
+    async def cdr(self, ctx, for_id: int = OWNER_ID):
+        """Resets cooldown for treasure and working"""
+        await self.bot.pool.execute("UPDATE e_treasure SET lastmins = 0 WHERE id = $1", for_id)
+        await self.bot.pool.execute("UPDATE e_jobs SET lasthours = 0 WHERE id = $1", for_id)
+        await ctx.message.add_reaction("\U0001f44d")
+
+    @dev.command(aliases=['emojis', 'emoji', 'emote', 'em'])
+    async def emotes(self, ctx, ename: str = None):
+        """Shows all emotes that the bot can see"""
+        player = await Player.get(ctx.author.id, self.bot)
+        allemojis = self.bot.emojis
+        if ename is not None:
+            allemojis = []
+            for n in self.bot.emojis:
+                if n.name == ename.strip():
+                    allemojis.append(n)
+        charlim = 4096
+        fieldlim = 1
+        charcount = 0
+        current_message = ""
+        descs = []
+        embeds = []
+        for e in allemojis:
+            if (len(str(e)) + charcount) >= charlim:
+                #no space in message
+                descs.append(current_message)
+                current_message = ""
+                charcount = 0
+            else:
+                #space in message
+                current_message = current_message + str(e) + " "
+                charcount += len(str(e))+1
+        for d in descs:
+            embeds.append(discord.Embed(title='EconomyX Emojis', description=d, color=player.profile_color))
+        if len(embeds) == 0:
+            return await ctx.send("No results")
+        emojipage = menus.MenuPages(source=EmojiListSource(embeds), clear_reactions_after=True)
+        await emojipage.start(ctx)
+
+    @dev.command(aliases=['steal'])
+    async def yoink(self, ctx, emoji, *, args: str = None):
+        custom_name = None
+        converter = commands.PartialEmojiConverter()
+        try: result = await converter.convert(ctx, emoji)
+        except commands.errors.PartialEmojiConversionFailure:
+            return await ctx.send("Is that an emoji? <:Weirdge:821906833848533075>")
+        
+        emojibytes = await result.read()
+        server = self.bot.get_guild(SUPPORT_SERVER)
+        if not server:
+            server = await self.bot.fetch_guild(SUPPORT_SERVER)
+        if args and 'as:' in args:
+            args = args.strip('as:')
+            custom_name = args
+        custom_name = result.name if custom_name is not None else result.name
+        try: await server.create_custom_emoji(name=custom_name, image=emojibytes, reason=f"Cloned by {ctx.author.name}")
+        except discord.Forbidden: return await ctx.send(f"{random.choice(failed_emojis)} Failed. either no space or i dont have perms")
+        await ctx.message.add_reaction(random.choice(success_emojis))
+
+    @dev.command(aliases=['r','rl'])
+    async def reload(self, ctx, *cogs: str):
+        failed = 0
+        if len(cogs) == 0:
+            cogs = self.initial_extensions
+        else:
+            cogs = [f"cogs.{c.removeprefix('cogs.')}" for c in cogs] #this will add 'cogs.' to every extension given
+        for c in cogs:
+            try:
+                try: await self.bot.unload_extension(f"{c}")
+                except commands.ExtensionNotLoaded: pass #its already unloaded so we'll just load it
+                await self.bot.load_extension(f"{c}")
+                log.info(f"Reloaded {c.removeprefix('cogs.')} cog")
+            except Exception as e:
+                failed += 1
+                log.error(str(e))
+        if failed == 0:
+            return await ctx.message.add_reaction(random.choice(success_emojis))
+        else:
+            await ctx.message.add_reaction(random.choice(failed_emojis))
+            await asyncio.sleep(0.2)
+            return await ctx.send("<:Ermm:1278588088893050993> there were errors check console")
+    
+    @dev.command(aliases=['ul','u'])
+    async def unload(self, ctx, *cogs: str):
+        failed = 0
+        if len(cogs) == 0:
+            cogs = self.initial_extensions
+        else:
+            cogs = [f"cogs.{c.removeprefix('cogs.')}" for c in cogs] #this will add 'cogs.' to every extension given
+        for c in cogs:
+            try:
+                await self.bot.unload_extension(f"{c}")
+                log.info(f"Unloaded {c.removeprefix('cogs.')} cog")
+            except Exception as e:
+                failed += 1
+                log.error(str(e))
+        if failed == 0:
+            return await ctx.message.add_reaction(random.choice(success_emojis))
+        else:
+            await ctx.message.add_reaction(random.choice(failed_emojis))
+            await asyncio.sleep(0.2)
+            return await ctx.send("<:Ermm:1278588088893050993> there were errors check console")
+            
+    @dev.command()
+    async def sudo(self, ctx, target: discord.Member):
+        msg = copy.copy(ctx.message)
+        new_channel = channel or ctx.channel
+        msg.channel = new_channel
+        msg.author = who
+        msg.content = ctx.prefix + command
+        new_ctx = await self.bot.get_context(msg, cls=type(ctx))
+        await self.bot.invoke(new_ctx)
+        
+
+
+
+        
 async def setup(bot):
     await bot.add_cog(devtools(bot))

@@ -1,8 +1,11 @@
 import typing
 import discord
 import aiohttp
+import logging
 from .utils import player as Player
 from discord.ext import commands
+
+log = logging.getLogger(__name__)
 
 class Achievement:
     def __init__(self, name, desc):
@@ -42,7 +45,7 @@ AchievementsDict = {
     30: Achievement('#1 Fan', 'Use 100,000 commands with EconomyX <:gigachad:1071094100998230047>'),
 }
 
-class achievements(commands.Cog):
+class achievements(commands.Cog, command_attrs=dict(name='Achievements')):
     """
     Achievements management.
     """
@@ -50,33 +53,25 @@ class achievements(commands.Cog):
         self.bot = bot
         self.HOOK_TOKEN = open("ACH_WEBHOOK.txt",'r').readline()
 
-    async def cog_load(self):
-        await self.bot.db.execute("CREATE TABLE IF NOT EXISTS e_achievements (userid int, achid int, obtained blob)")
-
     async def has_ach(self, player: typing.Union[discord.Member, discord.User, int], ach_id: int):
         if type(player) != int:
             player = player.id
-        c = await self.bot.db.execute("SELECT * FROM e_achievements WHERE userid = ? AND achid = ?", (player, ach_id))
-        res = await c.fetchone()
-        if res:
+        c = await self.bot.pool.fetchrow("SELECT * FROM e_achievements WHERE userid = $1 AND achid = $2", player, ach_id)
+        if c:
             return False #can't award
         else:
             return True #can award
     
     async def give_ach(self, player: typing.Union[discord.Member, discord.User], ach_id: int):
-        try:
-            if not await self.has_ach(player, ach_id):
-                print(f"{player.name} already has achievement {ach_id}")
-                return
-            timestamp = discord.utils.utcnow()
-            await self.bot.db.execute("INSERT INTO e_achievements VALUES (?, ?, ?)", (player.id, ach_id, timestamp,))
-            async with aiohttp.ClientSession() as session:
-                webhook = discord.Webhook.from_url(self.HOOK_TOKEN, session=session)
-                await webhook.send(f"{player.name} got achievement **{(AchievementsDict[ach_id]).name}**! ({discord.utils.format_dt(timestamp)})")
-            await self.bot.db.commit()
-            print(f"[{timestamp}] awarded achievement {ach_id} to {player.name} ({player.id})")
-        except Exception as e:
-            print(e)
+        if not await self.has_ach(player, ach_id):
+            log.info(f"{player.name} already has achievement {ach_id}")
+            return
+        await self.bot.pool.execute("INSERT INTO e_achievements(userid, achid) VALUES ($1, $2)", player.id, ach_id)
+        now = discord.utils.utcnow()
+        async with aiohttp.ClientSession() as session:
+            webhook = discord.Webhook.from_url(self.HOOK_TOKEN, session=session)
+            await webhook.send(f"{player.name} got achievement **{(AchievementsDict[ach_id]).name}**! ({discord.utils.format_dt(now)})")
+        log.info(f"awarded achievement {ach_id} to {player.name} ({player.id})")
 
     @commands.Cog.listener()
     async def on_command_completion(self, ctx):
@@ -89,14 +84,14 @@ class achievements(commands.Cog):
                 earned_achievements.append(1)
         #2
         if ctx.command.cog_name.lower() == 'games':
-            result = await (await self.bot.db.execute("SELECT gamesPlayed from e_player_stats WHERE id = ?", (ctx.author.id,))).fetchone()
-            if result[0] >= 100:
+            result = await self.bot.pool.fetchrow("SELECT gamesPlayed from e_player_stats WHERE id = $1", ctx.author.id)
+            if (tuple(result)[0]) >= 100:
                 if await self.has_ach(ctx.author, 2):
                     earned_achievements.append(2)
         #3
         if ctx.command.cog_name.lower() == 'games':
-            result = await (await self.bot.db.execute("SELECT gamesPlayed from e_player_stats WHERE id = ?", (ctx.author.id,))).fetchone()
-            if result[0] >= 1000:
+            result = await self.bot.pool.fetchrow("SELECT gamesPlayed from e_player_stats WHERE id = $1", ctx.author.id)
+            if (tuple(result)[0]) >= 1000:
                 if await self.has_ach(ctx.author, 3):
                     earned_achievements.append(3)
         #4
@@ -109,19 +104,18 @@ class achievements(commands.Cog):
                 earned_achievements.append(5)
         #6
         if ctx.command.name == 'work':
-            result = await (await self.bot.db.execute("SELECT level FROM e_jobs WHERE id = ?", (ctx.author.id,))).fetchone()
-            if (result[0] >= 10) and (await self.has_ach(ctx.author, 6)):
+            result = await self.bot.pool.fetchrow("SELECT level FROM e_jobs WHERE id = $1", ctx.author.id)
+            if tuple(result)[0] >= 10 and (await self.has_ach(ctx.author, 6)):
                 earned_achievements.append(6)
         #7
         if ctx.command.name == 'work':
-            result = await (await self.bot.db.execute("SELECT level FROM e_jobs WHERE id = ?", (ctx.author.id,))).fetchone()
-            if (result[0] >= 20) and (await self.has_ach(ctx.author, 7)):
+            result = await self.bot.pool.fetchrow("SELECT level FROM e_jobs WHERE id = $1", ctx.author.id)
+            if tuple(result)[0] >= 20 and (await self.has_ach(ctx.author, 7)):
                 earned_achievements.append(7)
         #8
         if ctx.command.name == 'invest':
-            c = await self.bot.db.execute("SELECT * FROM e_invests WHERE userid = ?",(ctx.author.id,))
-            playerinvests = await c.fetchall()
-            if playerinvests is not None:
+            playerinvests = await self.bot.pool.fetch("SELECT * FROM e_invests WHERE userid = $1", ctx.author.id)
+            if len(playerinvests) > 0:
                 if await self.has_ach(ctx.author, 8):
                     earned_achievements.append(8)
         #9 is checked on e$invest sell
@@ -133,16 +127,13 @@ class achievements(commands.Cog):
                 earned_achievements.append(11)
         #12
         if ctx.command.name == 'invest':
-            print(0)
-            c = await self.bot.db.execute("SELECT stockid FROM e_invests WHERE userid = ?",(ctx.author.id,))
-            playerinvests = await c.fetchall()
+            playerinvests = await self.bot.pool.fetch("SELECT stockid FROM e_invests WHERE userid = $1", ctx.author.id)
             playerstock = await self.bot.get_stock_from_player(ctx.author.id)
-            owned_stock_id = playerstock[0]
-            if owned_stock_id in playerinvests[0]:
-                print(1)
-                if await self.has_ach(ctx.author, 12):
-                    print(2)
-                    earned_achievements.append(12)
+            if playerstock is not None: # it can be none because some people will do e$invest without owning a stock
+                owned_stock_id = playerstock[0]
+                if owned_stock_id in playerinvests:
+                    if await self.has_ach(ctx.author, 12):
+                        earned_achievements.append(12)
         #13 is done in the stock update loop
         #14 is done in stock update loop
         #15 is done in lottery loop
@@ -177,18 +168,18 @@ class achievements(commands.Cog):
                 earned_achievements.append(23)
         #24
         if ctx.command.name == 'pay':
-            result = await (await self.bot.db.execute("SELECT amountPaid from e_player_stats WHERE id = ?", (ctx.author.id,))).fetchone()
-            if (result[0] >= 10000) and (await self.has_ach(ctx.author, 24)):
+            result = await self.bot.pool.fetchrow("SELECT amountPaid from e_player_stats WHERE id = $1", ctx.author.id)
+            if (tuple(result)[0] >= 10000) and (await self.has_ach(ctx.author, 24)):
                 earned_achievements.append(24)
         #25
         if ctx.command.name == 'pay':
-            result = await (await self.bot.db.execute("SELECT amountPaid from e_player_stats WHERE id = ?", (ctx.author.id,))).fetchone()
-            if (result[0] >= 50000) and (await self.has_ach(ctx.author, 25)):
+            result = await self.bot.pool.fetchrow("SELECT amountPaid from e_player_stats WHERE id = $1", ctx.author.id)
+            if (tuple(result)[0] >= 50000) and (await self.has_ach(ctx.author, 25)):
                 earned_achievements.append(25)
         #26
         if ctx.command.name == 'pay':
-            result = await (await self.bot.db.execute("SELECT amountPaid from e_player_stats WHERE id = ?", (ctx.author.id,))).fetchone()
-            if (result[0] >= 1000000) and (await self.has_ach(ctx.author, 26)):
+            result = await self.bot.pool.fetchrow("SELECT amountPaid from e_player_stats WHERE id = $1", ctx.author.id)
+            if (tuple(result)[0] >= 1000000) and (await self.has_ach(ctx.author, 26)):
                 earned_achievements.append(26)
         #27
         if player.total_earnings >= 1000000000000:
@@ -206,6 +197,7 @@ class achievements(commands.Cog):
         if await player.get_commands_used() >= 100000:
             if await self.has_ach(ctx.author, 30):
                 earned_achievements.append(30)
+
         if len(earned_achievements) > 0: # if its not 0, an achievement criteria was met
             msg = ""
             for a in earned_achievements:
@@ -213,20 +205,20 @@ class achievements(commands.Cog):
                 msg = msg + (f"**Achievement get!** {AchievementsDict[a].name}\n*See your achievements with `{ctx.clean_prefix}achievements`*\n")
             await ctx.reply(msg)
         
+    async def get_player_ach(self, player):
+        result = await self.bot.pool.fetch("SELECT * FROM e_achievements WHERE userid = $1", player.id)
+        return tuple(result)
 
-
-
-
-
-    @commands.group(invoke_without_command=True, name='achievements')
+    @commands.group(invoke_without_command=True, name='achievements', aliases=['ach', 'achieve'])
     async def achievement(self, ctx):
-        embed = discord.Embed(title='Achievements', color=discord.Color.from_rgb(255,255,255),description='WIP') # todo
+        player = await Player.get(ctx.author.id, self.bot)
+        achs = await self.get_player_ach(player)
+        embed = discord.Embed(title='Achievements', color=player.profile_color)
+        for a in achs:
+            embed.add_field(name=AchievementsDict[a[1]].name, value=f"{AchievementsDict[a[1]].desc}\nUnlocked {self.bot.utc_calc(a[2], type='R')}")
+        if len(achs) == 0:
+            embed.description = f"{ctx.author.name} has no achievements yet!"
         await ctx.reply(embed=embed)
-
-    @achievement.command()
-    async def check(self, ctx):
-        """Manually checks to see if you are eligibe for any achievements. You only need to run this once, all achievements are automatic."""
-        pass
 
 async def setup(bot):
     await bot.add_cog(achievements(bot))

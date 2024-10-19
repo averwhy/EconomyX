@@ -1,16 +1,19 @@
 import discord
-import aiosqlite
+import asyncpg
 import sys, os
 import traceback
 import asyncio
 import time
 import typing
 import humanize
+import config
+import logging
 from discord.ext import commands
 from datetime import datetime, timezone
 from cogs.utils.errors import InvalidBetAmountError, NotAPlayerError, UnloadedError
 from cogs.utils.player import player as Player
 from dateutil import parser
+log = logging.getLogger(__name__)
 
 os.environ["JISHAKU_NO_DM_TRACEBACK"] = "True" 
 os.environ["JISHAKU_HIDE"] = "True"
@@ -29,9 +32,6 @@ class EcoBot(commands.Bot):
 
         for emoji in ('\N{WHITE HEAVY CHECK MARK}', '\N{CROSS MARK}'):
             await message.add_reaction(emoji)
-
-        async def setup_hook(self):
-            pass
 
         def check(payload):
             nonlocal confirm
@@ -57,38 +57,57 @@ class EcoBot(commands.Bot):
         finally:
             return confirm
 
-    async def add_player(self,member_object):
-        """Adds a player to the database"""
+    async def setup_hook(self):
+        self.pool = await asyncpg.create_pool(dsn=config.db().dsn(), command_timeout=60)
+        con = await self.pool.acquire()
         try:
-            await bot.db.execute("INSERT INTO e_users VALUES (?, ?, ?, 100, 0, 'FFFFFF', 0)",(member_object.id,member_object.name,member_object.guild.id,))
-            await bot.db.execute("INSERT INTO e_player_stats VALUES (?, 0, 0, 0, ?)", (member_object.id, discord.utils.utcnow()))
-            await bot.db.commit()
-            return f"Done! View your profile with `{self.default_prefix}profile`"
-        except Exception as e:
-            return str(e)
+            await con.execute("CREATE TABLE IF NOT EXISTS e_users (id BIGINT PRIMARY KEY UNIQUE NOT NULL, name TEXT NOT NULL, bal BIGINT NOT NULL DEFAULT 100, totalearnings BIGINT NOT NULL DEFAULT 0, profilecolor VARCHAR(6) NOT NULL DEFAULT 'FFFFFF', lotterieswon INTEGER NOT NULL DEFAULT 0)")
+            await con.execute("CREATE TABLE IF NOT EXISTS e_prefixes (userid BIGINT REFERENCES e_users(id), prefix VARCHAR(3) NOT NULL, setwhen TIMESTAMP NOT NULL DEFAULT now())")
+            cur = await con.fetch("SELECT userid, prefix FROM e_prefixes")
+            cur = [tuple(p) for p in cur]
+            self.prefixes = {user_id: prefix for user_id, prefix in cur}
+        finally:
+            log.info("Database connected")
+            await self.pool.release(con)
+        
+        # self.backup_db = await asyncpg.connect(user=config.db.user)
+        # print("Backup database is ready") # actual backing up is done in devtools cog
+        # await self.backup_db.close()
+
+        self.previous_balance_cache = {}
+
+        success = failed = 0
+        for cog in self.initial_extensions:
+            try:
+                await self.load_extension(f"{cog}")
+                success += 1
+            except Exception as e:
+                log.error(f"failed to load {cog}, error:\n", file=sys.stderr)
+                failed += 1
+                traceback.print_exc()
+            finally:
+                continue
+        log.info(f"loaded {success} cogs successfully, with {failed} failures.")
         
     async def get_player(self,id):
         """Gets a player from the database"""
-        cur = await bot.db.execute("SELECT * FROM e_users WHERE id = ?",(id,))
-        data = await cur.fetchone()
-        await bot.db.commit()
-        return data
+        data = await bot.pool.fetchrow("SELECT * FROM e_users WHERE id = $1", id)
+        return tuple(data)
     
     async def get_stock(self, name_or_id):
         """Gets a stock from the database. Checks both name and ID."""
-        cur = await bot.db.execute("SELECT * FROM e_stocks WHERE stockid = ?",(name_or_id,))
-        data = await cur.fetchone()
-        if data is None:
-            cur = await bot.db.execute("SELECT * FROM e_stocks WHERE name = ?",(name_or_id,))
-            data = await cur.fetchone()
-        await bot.db.commit()
-        return data
+        data = None
+        try: data = await bot.pool.fetchrow("SELECT * FROM e_stocks WHERE stockid = $1", name_or_id)
+        except asyncpg.DataError:
+            try: data = await bot.pool.fetchrow("SELECT * FROM e_stocks WHERE name = $1", name_or_id)
+            except asyncpg.DataError:
+                return None
+        return tuple(data)
     
     async def get_stock_from_player(self, userid):
         """Gets a stock from the database. Takes a user/member object."""
-        cur = await bot.db.execute("SELECT * FROM e_stocks WHERE ownerid = ?",(userid,))
-        data = await cur.fetchone()
-        return data
+        data = await bot.pool.fetchrow("SELECT * FROM e_stocks WHERE ownerid = $1", userid)
+        return tuple(data)
     
     async def begin_user_deletion(self, ctx, i_msg):
         """Begins the user deletion process."""
@@ -112,9 +131,10 @@ class EcoBot(commands.Bot):
         msg = await ctx.send(embed=embed)
         did_they = await self.prompt(ctx.author.id, msg, timeout=30, delete_after=False)
         if did_they:
-            await bot.db.execute("DELETE FROM e_users WHERE id = ?",(ctx.author.id,))
-            await bot.db.execute("DELETE FROM e_invests WHERE userid = ?",(ctx.author.id,))
-            await bot.db.execute("DELETE FROM e_stocks WHERE ownerid = ?",(ctx.author.id,))
+            await bot.pool.execute("DELETE FROM e_users WHERE id = $1", ctx.author.id)
+            await bot.pool.execute("DELETE FROM e_invests WHERE userid = $1", ctx.author.id)
+            await bot.pool.execute("DELETE FROM e_stocks WHERE ownerid = $1", ctx.author.id)
+            await bot.pool.execute("DELETE FROM e_user_stats WHERE ID = $1", ctx.author.id)
             await ctx.send("Okay, it's done. According to my database, you no longer exist.\nThank you for using EconomyX.")
         if not did_they:
             await ctx.send("Phew, canceled. None of your data was deleted.")
@@ -122,57 +142,36 @@ class EcoBot(commands.Bot):
         await msg.delete()
         return
         
-    async def usercheck(self,uid):
-        """Checks if an user exists in the database"""
-        cur = await bot.db.execute("SELECT * FROM e_users WHERE id = ?",(uid,))
-        data = await cur.fetchone()
-        return data is not None
-        # False = Not in database
-        # True = In database
-    
-    async def transfer_money(self,member_paying: typing.Union[discord.User, discord.Member] ,member_getting_paid: typing.Union[discord.User, discord.Member],amount):
-        """Transfers money from one player to another."""
-        c = await bot.db.execute("SELECT * FROM e_users WHERE id = ?",(member_paying.id,))
-        data1 = await c.fetchone()
-        c = await bot.db.execute("SELECT * FROM e_users WHERE id = ?",(member_getting_paid.id,))
-        data2 = await c.fetchone()
-        #update users
-        await bot.db.execute("UPDATE e_users SET bal = (bal - ?) WHERE id = ?",(amount,member_paying.id,))
-        await bot.db.execute("UPDATE e_users SET bal = (bal + ?) WHERE id = ?",(amount,member_getting_paid.id,))
-        await bot.db.commit()
-        
-    def utc_calc(self, timestamp: str, type: str = None, raw: bool = False, tz: timezone = timezone.utc):
-        formatted_ts = parser.parse(timestamp)
+    def utc_calc(self, timestamp:typing.Union[str, datetime], type: str = None, raw: bool = False, tz: timezone = timezone.utc):
+        formatted_ts = None
+        if isinstance(timestamp, str):
+            formatted_ts = parser.parse(timestamp)
+        else: formatted_ts = timestamp
         if raw:
             return formatted_ts
         if type:
             return discord.utils.format_dt(formatted_ts, type) # Why tf did i put this in here, im terrible at writing methods lmao
         return humanize.precisedelta(formatted_ts.astimezone())
     
-    def lottery_countdown_calc(self, timestamp:str): # thanks pikaninja
-        delta_uptime =  parser.parse(timestamp) - discord.utils.utcnow()
+    def lottery_countdown_calc(self, timestamp:typing.Union[str, datetime]): # thanks pikaninja
+        if isinstance(timestamp, str):
+            timestamp = parser.parse(timestamp)
+        delta_uptime = timestamp - discord.utils.utcnow()
         hours, remainder = divmod(int(delta_uptime.total_seconds()), 3600)
         minutes, seconds = divmod(remainder, 60)
         days, hours = divmod(hours, 24)
         return [days, hours, minutes, seconds]
 
-    async def award_achievement(self, user: int, achievement: int):
-        """Awards achievement to specified user"""
-        try: bot.get_cog('achievements')
-        except: raise UnloadedError("Cog `achievements` is unloaded"); return
-
-        player = await bot.get_player(user)
-
 async def get_prefix(bot, message):
     return bot.prefixes.get(message.author.id, bot.default_prefix)
-              
-bot = EcoBot(command_prefix=get_prefix,description=desc,intents=discord.Intents(reactions=True, messages=True, guilds=True, members=True, message_content=True))
 
-bot.initial_extensions = ["jishaku","cogs.player_meta","cogs.devtools","cogs.games","cogs.money_meta","cogs.misc","cogs.jobs","cogs.stocks","cogs.jsk_override", "cogs.lottery","cogs.stats","cogs.achievements"]
+bot = EcoBot(command_prefix=get_prefix,description=desc,chunk_guilds_on_startup=False,intents=discord.Intents(reactions=True, messages=True, guilds=True, members=True, message_content=True))
+
 with open("TOKEN.txt",'r') as t:
     TOKEN = t.readline()
+bot.initial_extensions = ["jishaku","cogs.player_meta","cogs.devtools","cogs.games","cogs.money_meta","cogs.misc","cogs.jobs","cogs.stocks","cogs.jsk_override", "cogs.lottery","cogs.stats","cogs.achievements", "cogs.treasure"]
 bot.time_started = time.localtime()
-bot.version = '0.8.0'
+bot.version = '1.0.0'
 bot.newstext = None
 bot.news_set_by = "no one yet.."
 bot.total_command_errors = 0
@@ -182,52 +181,14 @@ bot.maintenance = False
 bot.updates_channel = 798014940086403083
 bot.default_prefix = "e$"
 
-async def startup():
-    bot.db = await aiosqlite.connect('economyx.db', timeout=10)
-    await bot.db.execute("CREATE TABLE IF NOT EXISTS e_users (id int, name text, guildid int, bal int, totalearnings int, profilecolor text, lotterieswon int)")
-    await bot.db.execute("CREATE TABLE IF NOT EXISTS e_prefixes (userid int, prefix blob, setwhen blob)")
-    #await bot.db.execute("CREATE TABLE IF NOT EXISTS e_stats (userid int, commandsrun int, gamesplayed int, )")
-    print("Database connected")
-    
-    cur = await bot.db.execute("SELECT userid, prefix FROM e_prefixes")
-    bot.prefixes = {user_id: prefix for user_id, prefix in (await cur.fetchall())}
-
-    bot.backup_db = await aiosqlite.connect('ecox_backup.db')
-    print("Backup database is ready") # actual backing up is done in devtools cog
-    await bot.backup_db.close()
-
-    bot.previous_balance_cache = {}
-
-    success = failed = 0
-    for cog in bot.initial_extensions:
-        try:
-            await bot.load_extension(f"{cog}")
-            success += 1
-        except Exception as e:
-            print(f"failed to load {cog}, error:\n", file=sys.stderr)
-            failed += 1
-            traceback.print_exc()
-        finally:
-            continue
-    print(f"loaded {success} cogs successfully, with {failed} failures.")
-
-    async with bot:
-        await bot.start(TOKEN)
-
 @bot.event
 async def on_ready():
-    print('---------------------------------')
-    print('Logged in as', end=' ')
-    print(bot.user.name)
-    print(bot.user.id)
-    print('---------------------------------')
+    log.info('------------------------------------')
+    log.info(f'\U00002705 Logged in as {bot.user.name} ({bot.user.id})')
+    log.info('------------------------------------')
 
 @bot.event
 async def on_command_completion(command):
-    try: await bot.db.commit() # just cuz
-    except ValueError:
-        # bot is stopping
-        pass
     bot.total_command_completetions += 1
     
 class MaintenenceActive(commands.CheckFailure):
@@ -241,8 +202,14 @@ async def maintenance_mode(ctx):
     
 @bot.event
 async def on_command_error(ctx, error): # this is an event that runs when there is an error in a command
+    try: 
+        if ctx.command.cog == bot.get_cog('games'):
+            return
+    except AttributeError: #ctx.command is none for some reason
+        pass
     if isinstance(error, MaintenenceActive):
-        embed = discord.Embed(description=f"Sorry, but maintenance mode is active. EconomyX will be back soon!\nCheck `{ctx.clean_prefix}news` to see if there is any updates.",color=discord.Color(0xffff00))
+        #embed = discord.Embed(description=f"Sorry, but maintenance mode is active. EconomyX will be back soon!\nCheck `{ctx.clean_prefix}news` to see if there is any updates.",color=discord.Color(0xffff00))
+        embed = discord.Embed(description=f"Sorry, but maintenance mode is active. However i will be back VERY soon! See this event: https://discord.com/events/798014878018174976/1274952755491901480",color=discord.Color(0xffff00))
         await ctx.send(embed=embed)
     elif isinstance(error, discord.ext.commands.errors.CommandNotFound):      
         return
@@ -263,17 +230,26 @@ async def on_command_error(ctx, error): # this is an event that runs when there 
     else:
         bot.total_command_errors += 1
         await ctx.send(f"```diff\n- {error}\n```")
-        # All other Errors not returned come here. And we can just print the default TraceBack.
-        print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
+        log.warning('Ignoring exception in command {}:'.format(ctx.command))
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
 @bot.event
 async def on_error(event):
     # All other Errors not returned come here. And we can just print the default TraceBack.
-    print('A global error has occured:', file=sys.stderr)
-    traceback.print_exception(type(event), event, event.__traceback__, file=sys.stderr)
+    if hasattr(event, '__traceback__'):
+        log.error('A global error has occured:', file=sys.stderr)
+        traceback.print_exception(type(event), event, event.__traceback__, file=sys.stderr)
+    else:
+        pass
+
+async def startup():
+    async with bot:
+        await bot.start(TOKEN)
 
 if __name__ == "__main__":      
     asyncio.set_event_loop(asyncio.SelectorEventLoop())
-    # bot.run(TOKEN)
-    asyncio.run(startup())
+    discord.utils.setup_logging(root=True)
+    try: asyncio.run(startup())
+    except KeyboardInterrupt: 
+        log.critical("Forced shutdown...")
+        bot.pool.close()

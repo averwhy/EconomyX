@@ -1,4 +1,3 @@
-import humanize
 import random
 import discord
 from discord.ext import commands
@@ -16,15 +15,12 @@ LEVEL_PAY = {
     13: 35, 14: 36, 15: 38, 16: 40, 17: 42, 18: 45, 19: 49, 20: 55
 }
 
-class jobs(commands.Cog):
+class jobs(commands.Cog, command_attrs=dict(name='Jobs')):
     """
     This is for the work command.
     """
     def __init__(self,bot):
         self.bot = bot
-
-    async def cog_load(self):
-            await self.bot.db.execute("CREATE TABLE IF NOT EXISTS e_jobs (id int, xp int, level int, timesworked int, lastworked blob, lasthours int)")
 
     def level_bar(self, xp):
         return f"`[{'#' * (decimal := round(xp % 1 * 20))}{'_' * (20 - decimal)}]`"
@@ -32,22 +28,18 @@ class jobs(commands.Cog):
     def get_level(self, player_xp): # messy method to get level based on xp
         for xp in XP_REQUIREMENTS.values():
             if xp >= player_xp:
-                print("regular")
                 result = (list(XP_REQUIREMENTS.keys())[list(XP_REQUIREMENTS.values()).index(xp) - 1])
                 if result == 20: result = 1 # fuck this shit
                 return result
             elif xp >= 3300:
-                print("xp >= 3300")
                 return 20
     
     def can_work(self, data: tuple):
         """Returns True if the player can work, False if not."""
-        last_worked = self.bot.utc_calc(data[4], raw=True)
+        last_worked = data[4]
         last_hours = int(data[5]) / 2 # half their last worked hours
-        print(last_hours)
         cooldown = last_worked + timedelta(hours=last_hours) # cooldown is 2-4 hours in the future from last worked
         now = discord.utils.utcnow()
-        print(f'{cooldown}\n<\n{now}')
         if cooldown < now:
             return True # can work
         return False # cant work
@@ -56,14 +48,14 @@ class jobs(commands.Cog):
     async def job(self, ctx):
         """Base command for jobs. Here you can view you stats (xp & level), available jobs, and more."""
         player = await Player.get(ctx.author.id, self.bot)
-        total_workers = (await (await self.bot.db.execute("SELECT COUNT(*) FROM e_jobs")).fetchone())[0]
-        total_worked = (await (await self.bot.db.execute("SELECT SUM(timesworked) FROM e_jobs")).fetchone())[0]
-        total_xp = (await (await self.bot.db.execute("SELECT SUM(xp) FROM e_jobs")).fetchone())[0]
-        try: (await (await self.bot.db.execute("SELECT * FROM e_jobs WHERE id = ?", (player.id,))).fetchone())[0]
+        total_workers = (tuple(await self.bot.pool.fetchrow("SELECT COUNT(*) FROM e_jobs")))[0]
+        total_worked = (tuple(await self.bot.pool.fetchrow("SELECT SUM(timesworked) FROM e_jobs")))[0]
+        total_xp = (tuple(await self.bot.pool.fetchrow("SELECT SUM(xp) FROM e_jobs")))[0]
+        try: (tuple(await self.bot.pool.fetchrow("SELECT * FROM e_jobs WHERE id = $1", player.id)))[0]
         except TypeError:
             player_desc = "You haven't worked yet! Use `e$work` to start."
         else:
-            data = (await (await self.bot.db.execute("SELECT * FROM e_jobs WHERE id = ?", (player.id,))).fetchone())
+            data = (tuple(await self.bot.pool.fetchrow("SELECT * FROM e_jobs WHERE id = $1", player.id)))
             player_xp = data[1]
             player_level = data[2]
             player_timesworked = data[3]
@@ -84,18 +76,15 @@ class jobs(commands.Cog):
         player = await Player.get(ctx.author.id, self.bot)
         hours = random.randint(4, 8)
         xp = hours * 2
-        player_worked = (await (await self.bot.db.execute("SELECT * FROM e_jobs WHERE id = ?", (player.id,))).fetchone())
-        try: player_worked[0]
-        except TypeError:
+        player_worked = await self.bot.pool.fetchrow("SELECT * FROM e_jobs WHERE id = $1", player.id)
+        if player_worked is None:
             #no player!
             level = 1
-            await self.bot.db.execute("INSERT INTO e_jobs VALUES (?, ?, ?, 0, ?, 0)", (player.id, 0, level, discord.utils.utcnow()))
-            await self.bot.db.commit()
-            player_worked = (await (await self.bot.db.execute("SELECT * FROM e_jobs WHERE id = ?", (player.id,))).fetchone())
+            await self.bot.pool.execute("INSERT INTO e_jobs(id, lastworked, lasthours) VALUES ($1, $2, $3)", player.id, discord.utils.utcnow(), hours)
+            player_worked = await self.bot.pool.fetchrow("SELECT * FROM e_jobs WHERE id = $1", player.id)
             await ctx.send(f"You've started working for the first time! View your stats with `{ctx.clean_prefix}job`")
-        if not self.can_work(player_worked):
+        elif not self.can_work(player_worked):
             return await ctx.send(f"You worked too recently! You can work {discord.utils.format_dt(self.bot.utc_calc(player_worked[4], raw=True) + timedelta(hours=hours/2), 'R')}")
-        print(player_worked[1])
         current_level = self.get_level(player_worked[1])
         new_level = self.get_level((player_worked[1] + xp))
         pay = LEVEL_PAY[current_level]
@@ -105,18 +94,16 @@ class jobs(commands.Cog):
             did_level_up = f"\n**Level up!** You're now level {new_level}, and make ${LEVEL_PAY[new_level]} an hour."
         await ctx.send(f"You worked {hours} hours and earned ${pay * hours}, and {xp} XP.{did_level_up}")
 
-        await self.bot.db.execute("""
+        await self.bot.pool.execute("""
             UPDATE e_jobs SET
-            xp = xp + ?,
-            level = ?,
+            xp = xp + $1,
+            level = $2,
             timesworked = timesworked + 1,
-            lastworked = ?,
-            lasthours = ?
-            WHERE id = ?
-        """, (xp, new_level, discord.utils.utcnow(), hours, player.id,))
+            lastworked = $3,
+            lasthours = $4
+            WHERE id = $5
+        """, xp, new_level, discord.utils.utcnow(), hours, player.id)
         await player.update_balance(pay * hours, ctx=ctx)
-        await self.bot.db.commit()
-        
 
 async def setup(bot):
     await bot.add_cog(jobs(bot))

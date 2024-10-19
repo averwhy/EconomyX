@@ -1,13 +1,15 @@
 import discord
 import asyncio
+import logging
 from discord.ext import commands
 from discord.ext.commands.cooldowns import BucketType
 from .utils import player as Player
-
-from cogs.utils.botviews import X
+from .utils.errors import NotAPlayerError
+from .utils.botviews import X
+log = logging.getLogger(__name__)
 OWNER_ID = 267410788996743168
 
-class player_meta(commands.Cog):
+class player_meta(commands.Cog, command_attrs=dict(name='Player Meta')):
     """
     These commands are player meta. You can use these to get things like player profiles.
     """
@@ -21,18 +23,24 @@ class player_meta(commands.Cog):
         if user is None:
             user = ctx.author
         player = await Player.get(user.id, self.bot)
-        job_data = await player.get_job_data()
         job_desc = ""
-        if not job_data: # if none
+        try: job_data = await player.get_job_data()
+        except TypeError: # errors if not found
             job_desc = "None!"
         else: job_desc = f"Level {job_data[2]} | Worked {job_data[3]} times"
+        achcount = len(tuple(await self.bot.pool.fetch("SELECT * FROM e_achievements WHERE userid = $1", ctx.author.id)))
+        gamesplayed = (tuple(await self.bot.pool.fetch("SELECT gamesPlayed FROM e_player_stats WHERE id = $1", ctx.author.id)))[0][0] #TODO test this
         embedcolor = player.profile_color
         embed = discord.Embed(title=f"{str(user)}'s Profile",description=f"`ID: {user.id}`",color=embedcolor)
-        embed.set_thumbnail(url=user.avatar.url)
+        try: embed.set_thumbnail(url=user.avatar.url)
+        except: pass
         embed.add_field(name="Balance",value=f"${player.balance}")
         embed.add_field(name="Total earnings",value=f"${player.total_earnings}")
-        embed.add_field(name="Lotteries Won", value=f"{player.lotteries_won}",inline=False)
-        embed.add_field(name="Job Stats", value=job_desc)
+        embed.add_field(name='Games played', value=gamesplayed)
+        embed.add_field(name="Achievements", value=f"{achcount}/30")
+        embed.add_field(name="Lotteries Won", value=f"{player.lotteries_won}")
+        embed.add_field(name="Job Stats", value=job_desc, inline=False)
+        embed.add_field(name="Treasure Hunting Stats", value="Coming soon...")
         embed.set_footer(text=f"EconomyX v{self.bot.version}",icon_url=self.bot.user.avatar.url)
         await player.update_name(ctx.author.name)
         await self.bot.stats.add('totalprofilesViewed')
@@ -41,28 +49,25 @@ class player_meta(commands.Cog):
     @commands.cooldown(1,60,BucketType.user)
     @commands.command(aliases=["start","open"])
     async def register(self,ctx):
-        """Creates a profile with EconomyX. You can also use this is delete your account/profile."""
-        async with ctx.channel.typing():
-            await asyncio.sleep(0.5)
-            data = await self.bot.usercheck(ctx.author.id)
-            if not data:
-                msg = await self.bot.add_player(ctx.author)
-                await ctx.send(msg)
-                return
+        """Creates a profile with EconomyX. You can also use this to delete your account/profile."""
+        try: await Player.get(ctx.author.id, self.bot)
+        except NotAPlayerError:
+            await Player.player.create(bot=self.bot, member_object=ctx.author)
+            await ctx.send(f"Success! You can get started by viewing your profile: `{ctx.clean_prefix}profile`")
+            return
         msg2 = await ctx.send(f"Youre already in the database, {ctx.author.mention}\nIf you would like, i can delete all of your data from the database.\nSay `Yes` if you would like to start this process.")
         await self.bot.begin_user_deletion(ctx, msg2)
 
     @commands.command()
     async def tips(self, ctx):
-        from .utils.botviews import X
         n = ctx.me.name
         """Tips and tricks for money making in EconomyX"""
         tip = f"""*Disclaimer: Money with EconomyX is not real currency and cannot be exchanged for real currency. Please read the ToS for more info (found in the support server).*
-        When you register with {n}, you start out with $100. Using that money, you have to make more money.
-        There's a few ways you can do this.
+        When you register with {n}, you start out with $100. Using that money, you can make more money.
+        There's a few ways you can do this:
         1. Play money-making games
             There's many games you can play that you can earn money with. The simplest is `e$bet`, which has a 50% chance win rate.
-            If you're looking for higher risk but higher reward games, try `e$roulette`. If you select the 'green' option, theres a ~2.97 percent chance you will win **35x** your bet!
+            If you're looking for higher risk but higher reward games, try `e$roulette`. If you select the 'green' option, theres a ~1 percent chance you will win **25x** your bet!
         
         2. Invest in stocks
             Stocks can be a great way of making money. Say for example you invest $1,000 into a stock at 10 points. Then, you sell your investment when the stock is at 20 points.
@@ -70,84 +75,32 @@ class player_meta(commands.Cog):
             Remember, stock points randomly flucuate because they are ***not*** based off of real stocks.
             
         3. Win the lottery
-            This method is not quite the best. You can buy a lottery ticket for $100, and that money is pooled into the lottery. If you win, you will earn everybodys winnings.
-            If the lottery has a lot of contestants, the probability of winning is low. So don't bank all your money on this!
+            This method is not quite the best. You can buy a lottery ticket for $100, and that money is pooled into the lottery. If you win, you will earn everybodys winnings times two.
+            If the lottery has a lot of contestants, the probability of winning is low. However it doesn't hurt to just buy a ticket every day!
             
         If you have any questions or feedback, join the EconomyX support server (`e$support`)"""
 
         await ctx.send(tip, view=X())
-        
-    @commands.group(aliases=["c","change","custom"],invoke_without_command=True)
-    async def customize(self,ctx):
-        """Customize command."""
-        await ctx.send("Usage: `e$customize <guild/color>`")
-         
-    @commands.cooldown(1,60,BucketType.user)
-    @customize.command(name="guild", enabled=False)
-    async def gld(self, ctx, newguild: int = None):
-        """Allows you to change the guild you belong to. This wont effect your money or anything, just the guild (server) you belong to."""
-        data = await self.bot.get_player(ctx.author.id)
-        if data is None:
-            await ctx.send(f"You dont have a profile. Try `{ctx.clean_prefix}register`")
-        if newguild is None:
-            askmessage = await ctx.send(f"`Are you sure you want to change your guild to this server?`")
-            await askmessage.add_reaction(emoji="\U00002705") # white check mark
-            def check(reaction, user):
-                return user == ctx.message.author and str(reaction.emoji) == "\U00002705"
-            try:
-                reaction, user = await self.bot.wait_for('reaction_add', timeout=10, check=check)
-            except asyncio.TimeoutError:
-                await askmessage.edit(content="`Prompt timed out. Try again`")
-            else:
-                try:
-                    await askmessage.clear_reactions()
-                except:
-                    print(f"Failed to remove reactions in guild {ctx.message.guild.name} ({ctx.message.guild.id}), channel #{ctx.message.channel.name}")
-                await self.bot.db.execute("UPDATE e_users SET guildid = ? WHERE id = ?",(ctx.guild.id,ctx.author.id,))
-                await self.bot.db.commit()
-                await ctx.send(f"`Success! You now belong to {ctx.guild.name}!`")
-        if newguild is not None:
-            try:
-                grabbed_guild = self.bot.get_guild(newguild)
-                if grabbed_guild is None:
-                    grabbed_guild = await self.bot.fetch_guild(newguild)
-            except Exception as e:
-                await ctx.send(f"`I couldn't find that guild. More info:` ```\n{e}\n```")
-                return # cancels rest of function
-            askmessage = await ctx.send(f"`Are you sure you want to change your guild to {grabbed_guild.name}?`")
-            await askmessage.add_reaction(emoji="\U00002705") # white check mark
-            def check2(reaction, user):
-                return user == ctx.message.author and str(reaction.emoji) == "\U00002705"
-            try:
-                reaction, user = await self.bot.wait_for('reaction_add', timeout=10, check=check2)
-            except asyncio.TimeoutError:
-                await askmessage.edit(content="`Prompt timed out. Try again`")
-            else:
-                try:
-                    await askmessage.clear_reactions()
-                except:
-                    print(f"Failed to remove reactions in guild {ctx.message.guild.name} ({ctx.message.guild.id}), channel #{ctx.message.channel.name}")
-                await self.bot.db.execute("UPDATE e_users SET guildid = ? WHERE id = ?",(newguild,ctx.author.id,))
-                await self.bot.db.commit()
-                await askmessage.edit(content=f"`Success! You now belong to {grabbed_guild.name}!`")
 
     @commands.cooldown(1,10,BucketType.user)
-    @customize.command(aliases=["colour","c"])
+    @commands.command(aliases=["colour","c"])
     async def color(self,ctx,hexcolor : str = None):
-        """Allows you to change the color that shows on your profile, and other certain commands, like `help`."""
+        """Allows you to change the color that shows on your profile, and other certain commands that use embeds, like `help`."""
         data = await self.bot.get_player(ctx.author.id)
         if data is None:
             await ctx.send(f"You dont have a profile. Try `{ctx.clean_prefix}register`")
             return
+        if hexcolor is None:
+            return await ctx.send("Please provide a valid hex color value (without the `#`)")
         try:
+            if len(hexcolor.strip()) != 6:
+                return await ctx.send("That hex code is the wrong length! Remember not to include the `#`.")
             hexcolor = hexcolor.upper()
             newhexcolor = int((f"0x{hexcolor}"),0)
-            embed = discord.Embed(title="<-- Theres a preview of your chosen color!", description=f"**Are you sure you would like to change your profile color to hex value {hexcolor}?**", colour=discord.Color(newhexcolor))
-        except:
+            embed = discord.Embed(title="Heres a preview of your chosen color!", description=f"Are you sure you would like to change your profile color to hex value {hexcolor}?", colour=discord.Color(newhexcolor))
+        except Exception as e:
+            log.error(f"Error converting hex color \"{hexcolor}\": {e}")
             await ctx.send("There was an error with coverting that hex color. If you need help, try this link: https://htmlcolorcodes.com/color-picker/")
-        if hexcolor is None:
-            await ctx.send("Please provide a valid hex color value! (Without the #)")
-            return
         else:
             askmessage = await ctx.send(embed=embed)
             await askmessage.add_reaction("\U00002705") # white check mark
@@ -170,16 +123,17 @@ class player_meta(commands.Cog):
                         await askmessage.clear_reactions()
                     except: # forbidden (most likely)
                         await askmessage.delete() # we'll just delete our message /shrug
-                    await self.bot.db.execute("UPDATE e_users SET profilecolor = ? WHERE id = ?",(hexcolor,ctx.author.id,))
-                    await self.bot.db.commit()
+                    await self.bot.pool.execute("UPDATE e_users SET profilecolor = $1 WHERE id = $2", hexcolor,ctx.author.id,)
                     await ctx.send(f"Success! Do {ctx.prefix}profile to see your new profile color.")     
                 
     @commands.command(aliases=["lb"])
     async def leaderboard(self,ctx):
         """Views a leaderboard of users, sorted by their balance, descending."""
         async with ctx.channel.typing():
-            c = await self.bot.db.execute("SELECT * FROM e_users ORDER BY bal DESC")
-            data = await c.fetchmany(5)
+            all_users = await self.bot.pool.fetch("SELECT * FROM e_users ORDER BY bal DESC")
+            data = []
+            for u in range(5): #TODO test me!! or else
+                data.append(tuple(all_users)[u])
             data2 = await self.bot.get_player(ctx.author.id)
             if data2 is None:
                 color = discord.Color.blue()
