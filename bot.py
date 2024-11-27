@@ -6,7 +6,7 @@ import asyncio
 import time
 import typing
 import humanize
-import config
+import config as Config
 import logging
 from discord.ext import commands
 from datetime import datetime, timezone
@@ -68,7 +68,7 @@ class EcoBot(commands.Bot):
             return confirm
 
     async def setup_hook(self):
-        self.pool = await asyncpg.create_pool(dsn=config.db().dsn(), command_timeout=60)
+        self.pool = await asyncpg.create_pool(dsn=Config.db_dsn(), command_timeout=60)
         con = await self.pool.acquire()
         try:
             await con.execute(
@@ -83,10 +83,6 @@ class EcoBot(commands.Bot):
         finally:
             log.info("Database connected")
             await self.pool.release(con)
-
-        # self.backup_db = await asyncpg.connect(user=config.db.user)
-        # print("Backup database is ready") # actual backing up is done in devtools cog
-        # await self.backup_db.close()
 
         self.previous_balance_cache = {}
 
@@ -216,8 +212,6 @@ bot = EcoBot(
     ),
 )
 
-with open("TOKEN.txt", "r") as t:
-    TOKEN = t.readline()
 bot.initial_extensions = [
     "jishaku",
     "cogs.player_meta",
@@ -234,7 +228,7 @@ bot.initial_extensions = [
     "cogs.treasure",
 ]
 bot.time_started = time.localtime()
-bot.version = "1.0.2"
+bot.version = "1.0.3"
 bot.newstext = None
 bot.news_set_by = "no one yet.."
 bot.total_command_errors = 0
@@ -248,7 +242,7 @@ bot.default_prefix = "e$"
 @bot.event
 async def on_ready():
     log.info("------------------------------------")
-    log.info(f"\U00002705 Logged in as {bot.user.name} ({bot.user.id})")
+    log.info(f"\U00002705 Logged in as {bot.user.name} ({bot.user.id}) {bot.version}")
     log.info("------------------------------------")
 
 
@@ -269,9 +263,7 @@ async def maintenance_mode(ctx):
 
 
 @bot.event
-async def on_command_error(
-    ctx, error
-):  # this is an event that runs when there is an error in a command
+async def on_command_error(ctx, error):  # this is an event that runs when there is an error in a command
     try:
         if ctx.command.cog == bot.get_cog("games"):
             return
@@ -280,7 +272,7 @@ async def on_command_error(
     if isinstance(error, MaintenenceActive):
         # embed = discord.Embed(description=f"Sorry, but maintenance mode is active. EconomyX will be back soon!\nCheck `{ctx.clean_prefix}news` to see if there is any updates.",color=discord.Color(0xffff00))
         embed = discord.Embed(
-            description=f"Sorry, but maintenance mode is active. However i will be back VERY soon! See this event: https://discord.com/events/798014878018174976/1274952755491901480",
+            description=f"Sorry, but maintenance mode is active.\nCheck out {ctx.clean_prefix} for updates.",
             color=discord.Color(0xFFFF00),
         )
         await ctx.send(embed=embed)
@@ -323,7 +315,7 @@ async def on_error(event):
 
 async def startup():
     async with bot:
-        await bot.start(TOKEN)
+        await bot.start(Config.token)
 
 
 if __name__ == "__main__":

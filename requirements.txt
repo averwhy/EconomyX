@@ -1,0 +1,9 @@
+aiohttp==3.10.10
+aiosqlite==0.20.0
+asyncpg==0.30.0
+discord.py==2.4.0
+humanize==4.11.0
+jishaku @ git+https://github.com/Gorialis/jishaku@master
+discord-ext-menus @ git+https://github.com/Rapptz/discord-ext-menus
+discord-ext-menus-views @ git+https://github.com/oliver-ni/discord-ext-menus-views
+python_dateutil==2.8.2
