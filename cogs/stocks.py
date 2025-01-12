@@ -121,7 +121,7 @@ class stocks(commands.Cog, command_attrs=dict(name="Stocks")):
         try:
             cur = await self.bot.pool.fetchrow("SELECT SUM(invested) FROM e_invests")
             total_invested = f"${((tuple(cur))[0])}"
-        except Exception:  # TODO: find out what integer overflow error is
+        except OverflowError:
             total_invested = (
                 "\n**More than 9.23 quintillion ($9,223,372,036,854,775,807) dollars**"
             )

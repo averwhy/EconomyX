@@ -49,7 +49,7 @@ class player_meta(commands.Cog, command_attrs=dict(name="Player Meta")):
             )
         )[0][
             0
-        ]  # TODO test this
+        ] 
         embedcolor = player.profile_color
         embed = discord.Embed(
             title=f"{str(user)}'s Profile",

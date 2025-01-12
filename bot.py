@@ -8,7 +8,7 @@ import typing
 import humanize
 import config as Config
 import logging
-from cogs.utils.player import Player
+from cogs.utils import player as Player
 from discord.ext import commands
 from datetime import datetime, timezone
 from cogs.utils.errors import InvalidBetAmountError, NotAPlayerError
@@ -222,7 +222,7 @@ bot.initial_extensions = [
     "cogs.treasure",
 ]
 bot.time_started = time.localtime()
-bot.version = "1.0.3"
+bot.version = "1.1.0"
 bot.newstext = None
 bot.news_set_by = "no one yet.."
 bot.total_command_errors = 0
