@@ -145,7 +145,7 @@ REWARDS = (
 
 PERKS = (
     Perk(0, "Gloves", "shortens your cooldown by 30% for 10 digs", 1200, 10),
-    Perk(1, "Energy Drink", "removes cooldown once", 200, 1),
+    Perk(1, "Energy Drink", "removes cooldown once", 600, 1),
     Perk(2, "Metal Detector", "doubles the ore quantity mined for 5 digs", 1100, 5),
     Perk(
         3, "Rock Polisher", "increases revenue from sold ores by 30% one time", 1500, 1
@@ -253,7 +253,7 @@ class treasurehunting(commands.Cog, command_attrs=dict(name="Treasures")):
                                     timesdug integer,
                                     lastdug timestamp with time zone,
                                     lastmins smallint,
-                                    totalearned bigint
+                                    totalearned bigint DEFAULT 0
                                     )"""
         )
         await self.bot.pool.execute(
@@ -303,11 +303,11 @@ class treasurehunting(commands.Cog, command_attrs=dict(name="Treasures")):
 
     async def create_treasure_data(self, player: Player) -> Record:
         await self.bot.pool.execute(
-            "INSERT INTO e_treasure(id, currentshovel, timesdug, lastmins) VALUES ($1, 0, 0, 0)",
+            "INSERT INTO e_treasure(id, currentshovel, timesdug, lastmins, totalearned) VALUES ($1, 0, 0, 0, 0)",
             player.id,
         )
         await self.bot.pool.execute(
-            "INSERT INTO e_treasure_shovel_stats(id, shovelid, timesdug, moneyearned) VALUES ($1, 0, 0)",
+            "INSERT INTO e_treasure_shovel_stats(id, shovelid, timesdug) VALUES ($1, 0, 0)",
             player.id,
         )
         return await self.bot.pool.fetchrow(
@@ -446,7 +446,7 @@ class treasurehunting(commands.Cog, command_attrs=dict(name="Treasures")):
         perkview = PerkShopView()
         shopmsg = await ctx.send(embed=embed, view=perkview)
         await perkview.wait()
-        if len(perkview.children[0].values) >= 1:
+        if len(perkview.children[0].values) >= 1: # if theres more than 0 things chosen (it wont be more than 1)
             chosen_perk = Perk.get(int(perkview.children[0].values[0]))
             if chosen_perk.id in activeIDs:
                 return await ctx.reply(
@@ -477,7 +477,7 @@ class treasurehunting(commands.Cog, command_attrs=dict(name="Treasures")):
             await ctx.send(
                 f"You've dug for treasure for the first time! View your stats with `{ctx.clean_prefix}treasure`"
             )
-        elif not self.can_dig(player_treasure_data):
+        elif self.can_dig(player_treasure_data) is False:
             if 1 in perk_ids: # check for energy drink
                 if player.id in self.perk_1_prompt_cache:
                     return
@@ -505,7 +505,6 @@ class treasurehunting(commands.Cog, command_attrs=dict(name="Treasures")):
                 await ctx.send(
                     f"You're too tired to dig right now.. <:blobfeelsbad:819979895451025428>.. {discord.utils.format_dt(player_treasure_data[3] + timedelta(minutes=player_treasure_data[4]), 'R')}"
                 )
-                await ctx.send(f"{player_treasure_data[3]} plus {timedelta(minutes=player_treasure_data[4])} mins")
                 return
 
 
@@ -546,7 +545,6 @@ class treasurehunting(commands.Cog, command_attrs=dict(name="Treasures")):
             await ctx.send(
                 f"{random.choice(self.none_found_messages)} +{len(dug_ores)} ores, ready again {discord.utils.format_dt(right_now + timedelta(minutes=mins), 'R')}{perk_0_msg}"
             )
-            await ctx.send(f"{right_now} plus {timedelta(minutes=mins)} mins")
             return await self.post_dig(player, mins)
 
         # they got some ores
@@ -570,8 +568,6 @@ class treasurehunting(commands.Cog, command_attrs=dict(name="Treasures")):
         await ctx.send(
             f"{random.choice(self.found_messages)} +{len(dug_ores)} ores, ready again {mins_ts}\n-# {neat_ores.removesuffix(', ')}{perk_2_msg}{perk_0_msg}"
         )
-        await ctx.send(f"{right_now} plus {timedelta(minutes=mins)} mins")
-
 
     @commands.command(aliases=["ore"])
     async def ores(self, ctx: Context):

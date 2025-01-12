@@ -192,7 +192,7 @@ class player_meta(commands.Cog, command_attrs=dict(name="Player Meta")):
             for u in range(5):
                 data.append(tuple(all_users)[u])
 
-            embed_color = discord.Color(discord.Color.from_rgb(0, 0, 0))
+            embed_color = discord.Color.from_rgb(0, 0, 0)
             try: 
                 player = await Player.get(ctx.author.id, self.bot)
                 embed_color = player.profile_color
