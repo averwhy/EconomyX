@@ -512,6 +512,7 @@ class treasurehunting(commands.Cog, command_attrs=dict(name="Treasures")):
         has_perk_2 = False
         perk_0_msg = ""
         perk_2_msg = ""
+        mins = round(random.uniform(7.0, 20.0), 0)
         if 2 in perk_ids:
             perk_2 = ([p for p in player_perks if p.get("perkid") == 2])[0]
             if perk_2.get("usesleft") == 0:
@@ -536,10 +537,9 @@ class treasurehunting(commands.Cog, command_attrs=dict(name="Treasures")):
                 await self.bot.pool.execute("DELETE FROM e_treasure_perks WHERE id = $1 AND perkid = 0", ctx.author.id)
             else:
                 await self.bot.pool.execute("UPDATE e_treasure_perks SET usesleft = usesleft - 1 WHERE id = $1 AND perkid = 0", ctx.author.id)
-            perk_0_msg = f"\n-# Gloves shortened your cooldown by 30% ({perk_0_uses.get("usesleft")} uses left)"
+            perk_0_msg = f"\n-# Gloves shortened your cooldown by 30% ({perk_0_uses.get("usesleft") - 1} uses left)"
         
         dug_ores = player_shovel.dig(has_perk_2=has_perk_2)
-        mins = round(random.uniform(7.0, 20.0), 0)
         if len(dug_ores) == 0: # got nothing lul
             mins /= 1.5
             await ctx.send(
