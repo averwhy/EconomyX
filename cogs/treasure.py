@@ -245,11 +245,6 @@ class treasurehunting(commands.Cog, command_attrs=dict(name="Treasures")):
             "Someone you were walking behind dropped something.",
         )
 
-    async def cog_check(
-        self, ctx
-    ):  # REMOVE ME WHEN DONE DEVELOPING THE FUMKING UPDATE!
-        return ctx.author.id in [OWNER_ID, 295693363284410368]
-
     async def cog_load(self):
         await self.bot.pool.execute(
             """CREATE TABLE IF NOT EXISTS "e_treasure" 
