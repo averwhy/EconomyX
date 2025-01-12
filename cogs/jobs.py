@@ -109,7 +109,7 @@ class jobs(commands.Cog, command_attrs=dict(name="Jobs")):
                 )
             )[0]
         except TypeError:
-            player_desc = "You haven't worked yet! Use `e$work` to start."
+            player_desc = f"You haven't worked yet! Use `{ctx.clean_prefix}work` to start."
         else:
             data = tuple(
                 await self.bot.pool.fetchrow(

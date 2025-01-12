@@ -95,9 +95,9 @@ class FakeEmote(discord.PartialEmoji):
 emote = EmojiSettings(
     start=FakeEmote.from_name("<a:thick_loading:793168593663164446>"),
     back=FakeEmote.from_name("<:PepePoint_flipped:798178551459348540>"),
-    forward=FakeEmote.from_name("<:PepePoint:759934591590203423>"),
-    end=FakeEmote.from_name("<:blobstop:749111017778184302>"),
-    close=FakeEmote.from_name("<:redTick:596576672149667840>"),
+    forward=FakeEmote.from_name("<:PepePoint:822285837097762816>"),
+    end=FakeEmote.from_name("<:blobstop:587855243468079104>"),
+    close=FakeEmote.from_name("<:Fiddy:1112561491279892580>"),
 )
 jishaku.paginators.EMOJI_DEFAULT = emote  # Overrides jishaku emojis
 

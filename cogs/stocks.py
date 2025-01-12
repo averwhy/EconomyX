@@ -3,6 +3,7 @@ import re
 import random
 import asyncio
 import logging
+from utils.errors import NotAPlayerError
 from discord.ext import commands
 from discord.ext import tasks
 from .utils.botviews import Confirm
@@ -74,7 +75,7 @@ class stocks(commands.Cog, command_attrs=dict(name="Stocks")):
         """Views a players stock portfolio. Includes all investments, and owned stocks."""
         player = await Player.get(ctx.author.id, self.bot)
         if player is None:
-            await ctx.send("You dont have a profile! Get one with `e$register`.")
+            await ctx.send(f"You dont have a profile! Get one with `{ctx.clean_prefix}register`.")
             return
         if user is None:
             user = ctx.author
@@ -155,7 +156,12 @@ class stocks(commands.Cog, command_attrs=dict(name="Stocks")):
             return await ctx.send(
                 "I couldn't find that stock, check the name or ID again. Note: Names are case sensitive."
             )
-        embed = discord.Embed(title=f"{stock[1]}", description=f"ID: {stock[0]}")
+        embed_color = discord.Color(discord.Color.brand_red())
+        try: 
+            player = await Player.get(ctx.author.id, self.bot)
+            embed_color = player.profile_color
+        except NotAPlayerError: pass
+        embed = discord.Embed(title=f"{stock[1]}", description=f"ID: {stock[0]}", color=embed_color)
         tl1 = self.bot.utc_calc(stock[5], style="R")
         tl2 = self.bot.utc_calc(stock[5], style="F")
         embed.add_field(name="Stock Created", value=f"{tl2} / {tl1}")
@@ -180,7 +186,7 @@ class stocks(commands.Cog, command_attrs=dict(name="Stocks")):
         playerstock = await self.bot.get_stock_from_player(ctx.author.id)
         if playerstock is not None:
             return await ctx.send(
-                "You already have a stock. If you want to edit it, use `e$stock edit`"
+                f"You already have a stock. If you want to edit it, use `{ctx.clean_prefix}stock edit`"
             )
         if len(name) > 5:
             return await ctx.send(
@@ -229,7 +235,7 @@ class stocks(commands.Cog, command_attrs=dict(name="Stocks")):
         playerstock = await self.bot.get_stock_from_player(ctx.author)
         if playerstock is None:
             return await ctx.send(
-                "You don't have a stock. If you want make one, use `e$stock create <name>`"
+                f"You don't have a stock. If you want make one, use `{ctx.clean_prefix}stock create <name>`"
             )
 
         investor_count = await self.bot.pool.fetchrow(
@@ -266,7 +272,7 @@ class stocks(commands.Cog, command_attrs=dict(name="Stocks")):
         playerstock = await self.bot.get_stock_from_player(ctx.author.id)
         if playerstock is None:
             return await ctx.send(
-                "You don't have a stock. If you want make one, use `e$stock create <name>`"
+                f"You don't have a stock. If you want make one, use `{ctx.clean_prefix}stock create <name>`"
             )
 
         # todo: make a view for this \/ \/

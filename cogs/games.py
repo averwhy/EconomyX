@@ -95,7 +95,7 @@ class Blackjack(discord.ui.View):
         return Deck.get_values(self.player_hand)
 
     async def create_embed(self) -> discord.Embed:
-        embed = discord.Embed(title="Blackjack")
+        embed = discord.Embed(title="Blackjack", color=self.player.profile_color)
         p_cards = ", ".join([f"{str(c)}" for c in self.player_hand])
         embed.add_field(
             name="Player cards",
@@ -336,9 +336,9 @@ class games(commands.Cog, command_attrs=dict(name="Games")):
         await Player.get(ctx.author.id, self.bot)
         await self.bot.stats.user_add_games(ctx.author)
 
-    async def cog_command_error(self, ctx, error: Exception):
+    async def cog_command_error(self, ctx: commands.Context, error: Exception):
         if isinstance(error, NotAPlayerError):
-            return await ctx.send("You dont have a profile! Get one with `e$register`.")
+            return await ctx.send(f"You dont have a profile! Get one with `{ctx.clean_prefix}register`.")
         await ctx.reply(f"A error occured with your game...\n{error}")
 
     @commands.cooldown(1, 2, BucketType.user)
@@ -576,7 +576,7 @@ class games(commands.Cog, command_attrs=dict(name="Games")):
                 updated_embed = discord.Embed(title="Craps", description="").set_footer(
                     text=f"Amount bet: {amount} | Rolls: {rolls}"
                 )
-            updated_embed.description = f"{updated_embed.description}\nRoll {rolls} | Dice 1: {self.dice_emojis[dice_1]},  Dice 2: {self.dice_emojis[dice_2]} ({(dice_1 + dice_2)})\n\n**You lost.** \:("
+            updated_embed.description = f"{updated_embed.description}\nRoll {rolls} | Dice 1: {self.dice_emojis[dice_1]},  Dice 2: {self.dice_emojis[dice_2]} ({(dice_1 + dice_2)})\n\n**You lost.** \\:("
             updated_embed.color = discord.Color.red()
             updated_embed.set_footer(text=f"Amount lost: ${amount} | Rolls: {rolls}")
             try:
@@ -600,6 +600,7 @@ class games(commands.Cog, command_attrs=dict(name="Games")):
             embed=discord.Embed(
                 title="Craps",
                 description=f"Roll {rolls} | Dice 1: {self.dice_emojis[dice1]},  Dice 2: {self.dice_emojis[dice2]} ({dices})",
+                color = player.profile_color
             ).set_footer(text=f"Amount bet: {amount} | Rolls: {rolls}")
         )
 

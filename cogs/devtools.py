@@ -11,6 +11,7 @@ import logging
 from discord import Webhook
 import aiohttp
 from .utils.errors import NotAPlayerError
+from config import webhook
 
 OWNER_ID = 267410788996743168
 SUPPORT_SERVER = 798014878018174976
@@ -26,7 +27,6 @@ class EmojiListSource(menus.ListPageSource):
         return entry.set_footer(
             text=f"Page {(menu.current_page * self.per_page) + 1}/{self.get_max_pages()}"
         )
-
 
 success_emojis = [
     "<:YEP:819979975096533032>",
@@ -58,7 +58,6 @@ failed_emojis = [
     "<a:ppPoof:1212154512467558520>",
 ]
 
-
 class devtools(commands.Cog, command_attrs=dict(name="Devtools", hidden=True)):
     """
     Dev commands. thats really it
@@ -66,7 +65,7 @@ class devtools(commands.Cog, command_attrs=dict(name="Devtools", hidden=True)):
 
     def __init__(self, bot):
         self.bot = bot
-        self.log_hook = open("WEBHOOK.txt", "r").readline()
+        self.log_hook = webhook
 
     async def cog_load(self):
         self.database_backup_task.start()
@@ -80,7 +79,6 @@ class devtools(commands.Cog, command_attrs=dict(name="Devtools", hidden=True)):
     @tasks.loop(minutes=10)  # TODO fix later
     async def database_backup_task(self):
         pass
-
     #     try:
     #         self.bot.backup_db = await aiosqlite.connect('ecox_backup.db')
     #         await self.bot.db.backup(self.bot.backup_db)
@@ -380,7 +378,7 @@ Created:         {ts} ago```
             )
         await ctx.message.add_reaction(random.choice(success_emojis))
 
-    @dev.command(aliases=["r", "rl"])
+    @dev.command(aliases=["r"])
     async def reload(self, ctx, *cogs: str):
         failed = 0
         if len(cogs) == 0:

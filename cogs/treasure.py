@@ -2,16 +2,19 @@ import discord
 import random
 import humanize
 import logging
+from typing import Union
+from asyncpg import Record
 from datetime import timedelta
 from discord.ext import commands
+from discord.ext.commands import Context
 from .utils import player as Player
 from .utils.botviews import X, Confirm
+from datetime import datetime
 
 OWNER_ID = 267410788996743168
 CHECK = "\U00002705"
 
 log = logging.getLogger(__name__)
-
 
 class Perk:
     def __init__(self, id: int, name: str, desc: str, cost: int, uses: int):
@@ -26,7 +29,6 @@ class Perk:
         """Gets a Perk object from a given ID"""
         return PERKS[perk_id]
 
-
 class Ore:
     def __init__(self, id: int, name: str, sellcost: int, rarity: float):
         self.id = id
@@ -38,7 +40,6 @@ class Ore:
     def get(ore_id: int):
         """Gets a Ore object from a given ID"""
         return REWARDS[ore_id]
-
 
 class Shovel:
     def __init__(self, id: int, name: str, price: int, multiplier: float):
@@ -71,7 +72,6 @@ class Shovel:
     def get(shovel_id: int):
         """Gets a Shovel object from a given ID"""
         return SHOVELS[shovel_id]
-
 
 SHOVELS = (
     Shovel(0, "Wooden Spoon", 0, 0.5),
@@ -152,7 +152,6 @@ PERKS = (
     ),
 )
 
-
 class TreasureShopButton(discord.ui.View):
     def __init__(self, player: Player, cost: int):
         super().__init__()
@@ -181,7 +180,6 @@ class TreasureShopButton(discord.ui.View):
         await interaction.message.edit(embed=interaction.message.embeds[0], view=self)
         await interaction.response.defer()
         self.stop()
-
 
 class PerkShopMenu(discord.ui.Select):
     def __init__(self):
@@ -212,19 +210,17 @@ class PerkShopMenu(discord.ui.Select):
         await interaction.message.edit(view=self.view)
         return self.view.stop()
 
-
 class PerkShopView(discord.ui.View):
     def __init__(self):
         super().__init__()
         self.add_item(PerkShopMenu())
-
 
 class treasurehunting(commands.Cog, command_attrs=dict(name="Treasures")):
     """Treasure hunting for money! Dig up various ores and even some more valuable prizes."""
 
     def __init__(self, bot):
         self.bot = bot
-
+        self.perk_1_prompt_cache = list()
         self.none_found_messages = (
             "After a valiant effort, your search turns up treasure-less.",
             "Your luck ran dry..",
@@ -261,7 +257,8 @@ class treasurehunting(commands.Cog, command_attrs=dict(name="Treasures")):
                                     currentshovel smallint,
                                     timesdug integer,
                                     lastdug timestamp with time zone,
-                                    lastmins smallint
+                                    lastmins smallint,
+                                    totalearned bigint
                                     )"""
         )
         await self.bot.pool.execute(
@@ -276,8 +273,9 @@ class treasurehunting(commands.Cog, command_attrs=dict(name="Treasures")):
             """CREATE TABLE IF NOT EXISTS "e_treasure_shovel_stats" 
                                     (id bigint REFERENCES e_users(id),
                                     shovelid smallint,
-                                    timesdug integer,
-                                    moneyearned integer)"""
+                                    timesdug integer
+                                    )
+                                    """
         )
         await self.bot.pool.execute(
             """CREATE TABLE IF NOT EXISTS "e_treasure_perks" 
@@ -287,24 +285,61 @@ class treasurehunting(commands.Cog, command_attrs=dict(name="Treasures")):
                                     boughtwhen timestamp with time zone not null default now())"""
         )
 
-    def can_dig(self, data: tuple):
+    def can_dig(self, data: tuple) -> bool:
         """Returns True if the player can dig, False if not."""
         last_dug = data[3]
         last_mins = int(data[4])
-        log.debug(last_mins)
         cooldown = last_dug + timedelta(
             minutes=last_mins
-        )  # cooldown is 2-8 mins in the future from last worked
-        now = discord.utils.utcnow()
-        log.debug(f"{cooldown}\n<\n{now}")
-        if cooldown < now:
+        )
+        if cooldown < discord.utils.utcnow():
             return True  # can work
         return False  # cant work
+    
+    async def get_treasure_data(self, player: Player) -> Union[Record, None]:
+        player_treasure_data = await self.bot.pool.fetchrow(
+            "SELECT * FROM e_treasure WHERE id = $1",
+            player.id,
+        )
+        if not player_treasure_data:
+            # no player!
+            return None
+        return player_treasure_data
+
+    async def create_treasure_data(self, player: Player) -> Record:
+        await self.bot.pool.execute(
+            "INSERT INTO e_treasure(id, currentshovel, timesdug, lastmins) VALUES ($1, 0, 0, 0)",
+            player.id,
+        )
+        await self.bot.pool.execute(
+            "INSERT INTO e_treasure_shovel_stats(id, shovelid, timesdug, moneyearned) VALUES ($1, 0, 0)",
+            player.id,
+        )
+        return await self.bot.pool.fetchrow(
+            "SELECT * FROM e_treasure WHERE id = $1",
+            player.id,
+        )
+
+    async def post_dig(self, player: Player, mins: float) -> None:
+        await self.bot.pool.execute(
+            """
+            UPDATE e_treasure SET
+                timesdug = timesdug + 1,
+                lastdug = $1,
+                lastmins = $2
+            WHERE id = $3
+        """,
+            discord.utils.utcnow(),
+            mins,
+            player.id,
+        )
 
     @commands.group(aliases=["tr"], invoke_without_command=True)
-    async def treasure(self, ctx):
+    async def treasure(self, ctx: Context):
         """Shows your treasure hunting info"""
-        player = await Player.get(ctx.author.id, self.bot)
+        player = await Player.get(ctx.author.id, self.bot)   
+
+        #global data that will be shown regardless
         total_diggers = tuple(
             await self.bot.pool.fetchrow("SELECT COUNT(*) FROM e_treasure")
         )[0]
@@ -313,22 +348,22 @@ class treasurehunting(commands.Cog, command_attrs=dict(name="Treasures")):
         )[0]
         total_earnt = tuple(
             await self.bot.pool.fetchrow(
-                "SELECT SUM(moneyearned) FROM e_treasure_shovel_stats"
+                "SELECT SUM(totalearned) FROM e_treasure"
             )
         )[0]
 
-        player_desc = ""  # get totalmoney, shovel, and times dug
-        player_data = await self.bot.pool.fetchrow(
-            "SELECT * FROM e_treasure WHERE ID = $1", ctx.author.id
-        )
-        if player_data is None:
-            player_desc = (
-                f"You haven't dug for treasure before! Try {ctx.clean_prefix}dig"
-            )
+        #per-user data that is only shown if they've dug before
+        player_desc = ""  # stores totalmoney, shovel, and times dug
+        player_data = await self.get_treasure_data(player)
+        if player_data is not None:
+            # show their info
+            player_perks = await self.bot.pool.fetch("SELECT * FROM e_treasure_perks WHERE id = $1", player.id)
+            neat_perks = ', '.join([p.name for p in PERKS if p.id in [r.get('perkid') for r in player_perks]])
+            player_inv = await self.bot.pool.fetch("SELECT * FROM e_treasure_inventory WHERE id = $1", player.id)
+            player_desc = f"Current shovel: {Shovel.get(player_data[1]).name}\nTimes dug: {player_data[2]}\nPerks: {neat_perks if len(neat_perks) != 0 else "None!"}\nInventory: {len(player_inv)} ores"
+            pass
         else:
-            if not self.can_dig(tuple(player_data)):
-                # show their info
-                pass
+            player_desc = f"You haven't dug for treasure before! Try `{ctx.clean_prefix}dig` to start."
 
         await ctx.send(
             embed=discord.Embed(
@@ -339,31 +374,35 @@ class treasurehunting(commands.Cog, command_attrs=dict(name="Treasures")):
         )
 
     @commands.group(invoke_without_command=True, aliases=["treasureshop"])
-    async def shop(self, ctx):
+    async def shop(self, ctx: Context):
         """Interactive shop for treasure hunting tools and perks"""
         await ctx.send(
             f"Usage: `{ctx.clean_prefix}shop (tools/perks)` <:blobthumbsup:819979852576587907>"
         )
 
     @shop.command()
-    async def tools(self, ctx):
+    async def tools(self, ctx: Context):
         player = await Player.get(ctx.author.id, self.bot)
+        if await self.get_treasure_data(player) is None:
+            return await ctx.send(f"You haven't dug for treasure before! Try `{ctx.clean_prefix}dig` before you shop for perks.")
         ownedShovels = await self.bot.pool.fetch(
             "SELECT shovelid FROM e_treasure_shovel_stats WHERE id = $1", ctx.author.id
         )
+        currentShovel = (await self.bot.pool.fetchrow(
+            "SELECT currentshovel FROM e_treasure WHERE id = $1", player.id
+        )).get('currentshovel')
         ownedIDs = [s.get("shovelid") for s in ownedShovels]
-        upperlimit = max(ownedIDs) + 7
+        lowerlimit = currentShovel
+        upperlimit = max(ownedIDs) + 5
         toollist = [
-            (
-                f"[${t.price}] {t.name} ({t.multiplier}) {CHECK if t.id in ownedIDs else ''}"
-            )
+            ( f"[${t.price}] {t.name} ({t.multiplier}) {CHECK if t.id in ownedIDs else ''}" )
             for t in SHOVELS
-            if t.id < upperlimit
+            if t.id <= upperlimit and t.id >= lowerlimit
         ]
         alltools = "\n".join(toollist)
         embed = discord.Embed(
             title="⛏ Treasure Tool Shop",
-            description=f"-# [price] (name) (quality)\n```ml\n{alltools}\nand {len(SHOVELS)-upperlimit} more...\n```",
+            description=f"You have ${player.bal}\n-# [price] (name) (quality)\n```ml\n{lowerlimit} previous...\n{alltools}\nand {len(SHOVELS)-upperlimit} more...\n```",
             color=player.profile_color,
         )
         embed.set_footer(text=f"Tool shop for @{ctx.author.name}")
@@ -379,15 +418,19 @@ class treasurehunting(commands.Cog, command_attrs=dict(name="Treasures")):
                 player.id,
             )
             await self.bot.pool.execute(
-                "INSERT INTO e_treasure_shovel_stats(id, shovelid, timesdug, moneyearned) VALUES ($1, $2, 0, 0)",
+                "INSERT INTO e_treasure_shovel_stats(id, shovelid, timesdug) VALUES ($1, $2, 0)",
                 player.id,
                 next_tool.id,
             )
             await shopmsg.add_reaction("\U00002705")
+        else:
+            await shopmsg.delete()
 
     @shop.command()
-    async def perks(self, ctx):
+    async def perks(self, ctx: Context):
         player = await Player.get(ctx.author.id, self.bot)
+        if await self.get_treasure_data(player) is None:
+            return await ctx.send(f"You haven't dug for treasure before! Try `{ctx.clean_prefix}dig` before you shop for perks.")
         activePerks = await self.bot.pool.fetch(
             "SELECT perkid FROM e_treasure_perks WHERE id = $1", ctx.author.id
         )
@@ -416,11 +459,6 @@ class treasurehunting(commands.Cog, command_attrs=dict(name="Treasures")):
                 )
             await player.update_balance(amount=(chosen_perk.cost * -1), ctx=ctx)
             await self.bot.pool.execute(
-                "UPDATE e_treasure SET currentshovel = $1 WHERE id = $2",
-                chosen_perk.id,
-                player.id,
-            )
-            await self.bot.pool.execute(
                 "INSERT INTO e_treasure_perks(id, perkid, usesleft) VALUES ($1, $2, $3)",
                 player.id,
                 chosen_perk.id,
@@ -429,43 +467,57 @@ class treasurehunting(commands.Cog, command_attrs=dict(name="Treasures")):
             await shopmsg.add_reaction("\U00002705")
 
     @commands.command(aliases=["d"])
-    async def dig(self, ctx):
+    async def dig(self, ctx: Context):
         """Dig for treasure using your equipped shovel/tool! Random cooldown between 7-20 mins"""
         player = await Player.get(ctx.author.id, self.bot)
-        mins = round(random.uniform(7.0, 20.0), 2)
-        player_treasure_data = await self.bot.pool.fetchrow(
-            "SELECT * FROM e_treasure WHERE id = $1",
-            player.id,
-        )
-        if not player_treasure_data:
-            # no player!
-            await self.bot.pool.execute(
-                "INSERT INTO e_treasure(id, currentshovel, timesdug, lastmins) VALUES ($1, 0, 0, 0)",
-                player.id,
-            )
-            await self.bot.pool.execute(
-                "INSERT INTO e_treasure_shovel_stats(id, shovelid, timesdug, moneyearned) VALUES ($1, 0, 0, 0)",
-                player.id,
-            )
-            player_treasure_data = await self.bot.pool.fetchrow(
-                "SELECT * FROM e_treasure WHERE id = $1",
-                player.id,
-            )
-            await ctx.send(
-                f"You've dug for treasure for the first time! View your stats with `{ctx.clean_prefix}treasure`"
-            )
-        elif not self.can_dig(player_treasure_data):
-            return await ctx.send(
-                f"You're too tired to dig right now.. <:blobfeelsbad:819979895451025428>.. {discord.utils.format_dt(player_treasure_data[3] + timedelta(minutes=player_treasure_data[4]), 'R')}"
-            )
-
-        player_shovel = Shovel.get(player_treasure_data[1])
+        player_treasure_data = await self.get_treasure_data(player)
         player_perks = await self.bot.pool.fetch(
             "SELECT * FROM e_treasure_perks WHERE id = $1", ctx.author.id
         )
         perk_ids = [r.get("perkid") for r in player_perks]
+        right_now = discord.utils.utcnow()
+        if player_treasure_data is None:
+            # no player!
+            player_treasure_data = await self.create_treasure_data(player)
+            await ctx.send(
+                f"You've dug for treasure for the first time! View your stats with `{ctx.clean_prefix}treasure`"
+            )
+        elif not self.can_dig(player_treasure_data):
+            if 1 in perk_ids: # check for energy drink
+                if player.id in self.perk_1_prompt_cache:
+                    return
+                self.perk_1_prompt_cache.append(player.id)
+                conf = Confirm(disable_after_click=True)
+                conf_msg = await ctx.send(
+                    f"You're too tired to dig right now... But you have an energy drink in your pocket! Drink it to reset the cooldown?",
+                    view=conf,
+                )
+                await conf.wait() # ask if they want to use it
+                if conf.value: 
+                    await self.bot.pool.execute(
+                        "DELETE FROM e_treasure_perks WHERE perkid = 1 AND id = $1", player.id
+                    )
+                    await self.bot.pool.execute(
+                        "UPDATE e_treasure SET lastmins = 0 WHERE id = $1", player.id
+                    )
+                    await conf_msg.edit(content="Cooldown reset! <a:rooMonster:1323063184696938550>")
+                    await ctx.invoke(self.dig)
+                    return self.perk_1_prompt_cache.remove(player.id)
+                else:
+                    await conf_msg.delete()
+                    return
+            else: # doesn't have energy drink
+                await ctx.send(
+                    f"You're too tired to dig right now.. <:blobfeelsbad:819979895451025428>.. {discord.utils.format_dt(player_treasure_data[3] + timedelta(minutes=player_treasure_data[4]), 'R')}"
+                )
+                await ctx.send(f"{player_treasure_data[3]} plus {timedelta(minutes=player_treasure_data[4])} mins")
+                return
+
+
+        player_shovel = Shovel.get(player_treasure_data[1])
         has_perk_2 = False
-        perk_message = ""
+        perk_0_msg = ""
+        perk_2_msg = ""
         if 2 in perk_ids:
             perk_2 = ([p for p in player_perks if p.get("perkid") == 2])[0]
             if perk_2.get("usesleft") == 0:
@@ -475,34 +527,34 @@ class treasurehunting(commands.Cog, command_attrs=dict(name="Treasures")):
                 )
             else:
                 has_perk_2 = True
-                perk_message = (
-                    f" - *Metal Detector active, {perk_2.get('usesleft')} uses left*"
-                )
                 await self.bot.pool.execute(
                     "UPDATE e_treasure_perks SET usesleft = (usesleft) - 1 WHERE id = $1 AND perkid = 2",
                     ctx.author.id,
                 )
+                perk_2_msg = (
+                    f" - *Metal Detector active, {perk_2.get('usesleft')} uses left*"
+                )
+        if 0 in perk_ids:
+            # Gloves: shorten cooldown by 30%
+            mins *= 0.7
+            perk_0_uses = await self.bot.pool.fetchrow("SELECT usesleft FROM e_treasure_perks WHERE id = $1 AND perkid = 0", ctx.author.id)
+            if perk_0_uses.get("usesleft") == 1:
+                await self.bot.pool.execute("DELETE FROM e_treasure_perks WHERE id = $1 AND perkid = 0", ctx.author.id)
+            else:
+                await self.bot.pool.execute("UPDATE e_treasure_perks SET usesleft = usesleft - 1 WHERE id = $1 AND perkid = 0", ctx.author.id)
+            perk_0_msg = f"\n-# Gloves shortened your cooldown by 30% ({perk_0_uses.get("usesleft")} uses left)"
+        
         dug_ores = player_shovel.dig(has_perk_2=has_perk_2)
-
-        if len(dug_ores) == 0:
-            mins /= 2
-            return await ctx.send(
-                f"{random.choice(self.none_found_messages)} +{len(dug_ores)} ores, ready again {discord.utils.format_dt(discord.utils.utcnow() + timedelta(minutes=mins), 'R')}"
+        mins = round(random.uniform(7.0, 20.0), 0)
+        if len(dug_ores) == 0: # got nothing lul
+            mins /= 1.5
+            await ctx.send(
+                f"{random.choice(self.none_found_messages)} +{len(dug_ores)} ores, ready again {discord.utils.format_dt(right_now + timedelta(minutes=mins), 'R')}{perk_0_msg}"
             )
+            await ctx.send(f"{right_now} plus {timedelta(minutes=mins)} mins")
+            return await self.post_dig(player, mins)
 
-        await self.bot.pool.execute(
-            """
-            UPDATE e_treasure SET
-                timesdug = timesdug + 1,
-                lastdug = $1,
-                lastmins = $2
-            WHERE id = $3
-        """,
-            discord.utils.utcnow(),
-            mins,
-            player.id,
-        )
-
+        # they got some ores
         neat_ores = ""
         for o in dug_ores:
             await self.bot.pool.execute(
@@ -510,21 +562,24 @@ class treasurehunting(commands.Cog, command_attrs=dict(name="Treasures")):
                 ctx.author.id,
                 o.id,
                 player_shovel.id,
-                discord.utils.utcnow(),
+                right_now,
             )
             neat_ores = (
                 neat_ores
                 + f"{len([oc for oc in dug_ores if oc.id == o.id])}x {o.name}, "
             )
         mins_ts = discord.utils.format_dt(
-            discord.utils.utcnow() + timedelta(minutes=mins), "R"
+            right_now + timedelta(minutes=mins), "R"
         )
+        await self.post_dig(player, mins)
         await ctx.send(
-            f"{random.choice(self.found_messages)} +{len(dug_ores)} ores, ready again {mins_ts}\n-# {neat_ores.removesuffix(', ')}{perk_message}"
+            f"{random.choice(self.found_messages)} +{len(dug_ores)} ores, ready again {mins_ts}\n-# {neat_ores.removesuffix(', ')}{perk_2_msg}{perk_0_msg}"
         )
+        await ctx.send(f"{right_now} plus {timedelta(minutes=mins)} mins")
+
 
     @commands.command(aliases=["ore"])
-    async def ores(self, ctx):
+    async def ores(self, ctx: Context):
         """Shows a list of obtainable ores"""
         player = await Player.get(ctx.author.id, self.bot)
         embed = discord.Embed(
@@ -543,8 +598,8 @@ class treasurehunting(commands.Cog, command_attrs=dict(name="Treasures")):
         await ctx.send(embed=embed, view=X())
 
     @commands.group(aliases=["inv"], invoke_without_command=True)
-    async def inventory(self, ctx):
-        """Shows your treasure inventory. To see ores, use e$inventory sell"""
+    async def inventory(self, ctx: Context):
+        """Shows your treasure inventory. To sell ores, use e$inventory sell"""
         player = await Player.get(ctx.author.id, self.bot)
         embed = discord.Embed(
             title="\U0001f392 Treasure Inventory", color=player.profile_color
@@ -582,7 +637,7 @@ class treasurehunting(commands.Cog, command_attrs=dict(name="Treasures")):
         await ctx.send(embed=embed, view=X())
 
     @inventory.command(name="sell", aliases=["s", "sellall"])
-    async def sell_(self, ctx):
+    async def sell_(self, ctx: Context):
         """Sells your treasure inventory"""
         player = await Player.get(ctx.author.id, self.bot)
         has_sell_perk = False
@@ -615,6 +670,11 @@ class treasurehunting(commands.Cog, command_attrs=dict(name="Treasures")):
                 "DELETE FROM e_treasure_inventory WHERE id = $1", ctx.author.id
             )
             await player.update_balance(amount=selltotal, ctx=ctx)
+            await self.bot.pool.execute(
+                    "UPDATE e_treasure SET totalearned = totalearned + $1 WHERE id = $2",
+                    selltotal,
+                    player.id,
+                )
             if has_sell_perk:
                 await self.bot.pool.execute(
                     "DELETE FROM e_treasure_perks WHERE id = $1 AND perkid = 3",

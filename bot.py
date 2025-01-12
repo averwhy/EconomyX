@@ -8,6 +8,7 @@ import typing
 import humanize
 import config as Config
 import logging
+from cogs.utils.player import Player
 from discord.ext import commands
 from datetime import datetime, timezone
 from cogs.utils.errors import InvalidBetAmountError, NotAPlayerError
@@ -18,9 +19,6 @@ log = logging.getLogger(__name__)
 os.environ["JISHAKU_NO_DM_TRACEBACK"] = "True"
 os.environ["JISHAKU_HIDE"] = "True"
 os.environ["JISHAKU_NO_UNDERSCORE"] = "True"
-
-desc = "EconomyX is a money system for Discord. It's straightfoward with only economy related commands, to keep it simple. I was made by averwhy#3899."
-
 
 class EcoBot(commands.Bot):
     def __init__(self, *args, **kwargs):
@@ -98,11 +96,6 @@ class EcoBot(commands.Bot):
             finally:
                 continue
         log.info(f"loaded {success} cogs successfully, with {failed} failures.")
-
-    async def get_player(self, id):
-        """Gets a player from the database"""
-        data = await bot.pool.fetchrow("SELECT * FROM e_users WHERE id = $1", id)
-        return tuple(data)
 
     async def get_stock(self, name_or_id):
         """Gets a stock from the database. Checks both name and ID."""
@@ -203,6 +196,7 @@ class EcoBot(commands.Bot):
 async def get_prefix(bot, message):
     return bot.prefixes.get(message.author.id, bot.default_prefix)
 
+desc = "EconomyX is a money system for Discord. It's straightfoward with only economy related commands, to keep it simple. I was made by averwhy#3899."
 bot = EcoBot(
     command_prefix=get_prefix,
     description=desc,
@@ -263,23 +257,28 @@ async def maintenance_mode(ctx):
 
 
 @bot.event
-async def on_command_error(ctx, error):  # this is an event that runs when there is an error in a command
+async def on_command_error(ctx: commands.Context, error):  # this is an event that runs when there is an error in a command
     try:
         if ctx.command.cog == bot.get_cog("games"):
             return
     except AttributeError:  # ctx.command is none for some reason
         pass
     if isinstance(error, MaintenenceActive):
-        # embed = discord.Embed(description=f"Sorry, but maintenance mode is active. EconomyX will be back soon!\nCheck `{ctx.clean_prefix}news` to see if there is any updates.",color=discord.Color(0xffff00))
+        embed_color = discord.Color(discord.Color.brand_red())
+        try: 
+            player = await Player.get(ctx.author.id, bot)
+            embed_color = player.profile_color
+        except NotAPlayerError: pass
+
         embed = discord.Embed(
             description=f"Sorry, but maintenance mode is active.\nCheck out {ctx.clean_prefix} for updates.",
-            color=discord.Color(0xFFFF00),
+            color=embed_color,
         )
         await ctx.send(embed=embed)
     elif isinstance(error, discord.ext.commands.errors.CommandNotFound):
         return
     elif isinstance(error, NotAPlayerError):
-        await ctx.send("You dont have a profile! Get one with `e$register`.")
+        await ctx.send(f"You dont have a profile! Get one with `{ctx.clean_prefix}register`.")
         return
     elif isinstance(error, discord.ext.commands.errors.CommandOnCooldown):
         s = humanize.naturaldelta(round(error.retry_after, 2))

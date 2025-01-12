@@ -13,4 +13,6 @@ ACH_WEBHOOK.txt
 /lib/
 lib64
 /include/
+/.vscode/
 secrets.json
+docker-compose.yml

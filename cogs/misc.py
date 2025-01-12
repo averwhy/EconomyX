@@ -19,16 +19,21 @@ OWNER_ID = 267410788996743168
 # Thanks to Kal for helping me out with this
 class HelpCommand(commands.HelpCommand):
 
+    async def get_color(self, ctx) -> typing.Union[int, discord.Color]:
+        """Gets a player's profile color. Returns black if no player was found."""
+        pcolor = discord.Color.from_rgb(0, 0, 0)
+        try:
+            pcolor = (await Player.get(ctx.author.id, ctx.bot)).profile_color
+        except NotAPlayerError: pass
+        return pcolor
+
     # This fires once someone does `<prefix>help`
     async def send_bot_help(
         self,
         mapping: Mapping[typing.Optional[commands.Cog], typing.List[commands.Command]],
     ):
         ctx = self.context
-        try:
-            pcolor = (await Player.get(ctx.author.id, ctx.bot)).profile_color
-        except NotAPlayerError:
-            pcolor = discord.Color.dark_gray()
+        pcolor = await self.get_color(ctx)
         embed = discord.Embed(title="EconomyX Help", color=pcolor)
         embed.set_footer(
             text=f"Do {ctx.clean_prefix}help [command] or {ctx.clean_prefix}help [category] for more info"
@@ -48,7 +53,8 @@ class HelpCommand(commands.HelpCommand):
     # This fires once someone does `<prefix>help <cog>`
     async def send_cog_help(self, cog: commands.Cog):
         ctx = self.context
-        embed = discord.Embed(title=f"Help for {cog.qualified_name}")
+        pcolor = await self.get_color(ctx)
+        embed = discord.Embed(title=f"Help for {cog.qualified_name}", color=pcolor)
         embed.set_footer(text=f"Do {ctx.clean_prefix}help [command] for more info")
 
         entries = await self.filter_commands(cog.get_commands(), sort=True)
@@ -65,10 +71,11 @@ class HelpCommand(commands.HelpCommand):
     # This fires once someone does `<prefix>help <command>`
     async def send_command_help(self, command: commands.Command):
         ctx = self.context
-
+        pcolor = await self.get_color(ctx)
         embed = discord.Embed(
             title=f"{ctx.clean_prefix}{command.qualified_name} {command.signature}",
             description=f"{command.help or command.description}",
+            color=pcolor,
         )
         embed.set_footer(text=f"Do {ctx.clean_prefix}help [command] for more info")
         await ctx.send(embed=embed)
@@ -76,9 +83,11 @@ class HelpCommand(commands.HelpCommand):
     # This fires once someone does `<prefix>help <group>`
     async def send_group_help(self, group: commands.Group):
         ctx = self.context
+        pcolor = await self.get_color(ctx)
         embed = discord.Embed(
             title=f"{ctx.clean_prefix}{group.qualified_name} {group.signature}",
             description=group.help,
+            color=pcolor,
         )
         embed.set_footer(text=f"Do {ctx.clean_prefix}help [command] for more help")
 
@@ -182,7 +191,7 @@ class misc(commands.Cog, command_attrs=dict(name="Misc")):
             player = await Player.get(ctx.author.id, self.bot)
             color = player.profile_color
         except:
-            color = discord.Color.blurple()
+            color = discord.Color.from_rgb(0, 0, 0)
         money_total = await self.bot.pool.fetchrow("SELECT SUM(bal) FROM e_users")
         total_db_users = await self.bot.pool.fetchrow("SELECT COUNT(id) FROM e_users")
         total_stocks = await self.bot.pool.fetchrow("SELECT COUNT(*) FROM e_stocks")
@@ -222,7 +231,7 @@ class misc(commands.Cog, command_attrs=dict(name="Misc")):
             player = await Player.get(ctx.author.id, self.bot)
             color = player.profile_color
         except:
-            color = discord.Color.blurple()
+            color = discord.Color.from_rgb(0, 0, 0)
         await ctx.send(
             embed=discord.Embed(
                 title="EconomyX Bot Invite",
@@ -251,7 +260,7 @@ class misc(commands.Cog, command_attrs=dict(name="Misc")):
         start = time.perf_counter()
         message = await ctx.send(
             embed=discord.Embed(
-                title="<a:ppCircle:1277157700421161083>", color=discord.Color.random()
+                title="<a:ppCircle:1277157700421161083>", color=pcolor
             )
         )
         end = time.perf_counter()
@@ -325,7 +334,7 @@ class misc(commands.Cog, command_attrs=dict(name="Misc")):
             if ctx.guild:
                 clr = ctx.guild.me.color
             else:
-                clr = discord.Color.dark_gray()
+                clr = discord.Color.from_rgb(0, 0, 0)
         (latest_message,) = [message async for message in channel.history(limit=1)]
         embed = discord.Embed(
             title="EconomyX News",

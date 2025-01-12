@@ -99,8 +99,8 @@ class player_meta(commands.Cog, command_attrs=dict(name="Player Meta")):
         When you register with {n}, you start out with $100. Using that money, you can make more money.
         There's a few ways you can do this:
         1. Play money-making games
-            There's many games you can play that you can earn money with. The simplest is `e$bet`, which has a 50% chance win rate.
-            If you're looking for higher risk but higher reward games, try `e$roulette`. If you select the 'green' option, theres a ~1 percent chance you will win **25x** your bet!
+            There's many games you can play that you can earn money with. The simplest is `{ctx.clean_prefix}bet`, which has a 50% chance win rate.
+            If you're looking for higher risk but higher reward games, try `{ctx.clean_prefix}roulette`. If you select the 'green' option, theres a ~1 percent chance you will win **25x** your bet!
         
         2. Invest in stocks
             Stocks can be a great way of making money. Say for example you invest $1,000 into a stock at 10 points. Then, you sell your investment when the stock is at 20 points.
@@ -111,7 +111,7 @@ class player_meta(commands.Cog, command_attrs=dict(name="Player Meta")):
             This method is not quite the best. You can buy a lottery ticket for $100, and that money is pooled into the lottery. If you win, you will earn everybodys winnings times two.
             If the lottery has a lot of contestants, the probability of winning is low. However it doesn't hurt to just buy a ticket every day!
             
-        If you have any questions or feedback, join the EconomyX support server (`e$support`)"""
+        If you have any questions or feedback, join the EconomyX support server (`{ctx.clean_prefix}support`)"""
 
         await ctx.send(tip, view=X())
 
@@ -119,10 +119,7 @@ class player_meta(commands.Cog, command_attrs=dict(name="Player Meta")):
     @commands.command(aliases=["colour", "c"])
     async def color(self, ctx, hexcolor: str = None):
         """Allows you to change the color that shows on your profile, and other certain commands that use embeds, like `help`."""
-        data = await self.bot.get_player(ctx.author.id)
-        if data is None:
-            await ctx.send(f"You dont have a profile. Try `{ctx.clean_prefix}register`")
-            return
+        await Player.get(ctx.author.id, self.bot)
         if hexcolor is None:
             return await ctx.send(
                 "Please provide a valid hex color value (without the `#`)"
@@ -192,18 +189,19 @@ class player_meta(commands.Cog, command_attrs=dict(name="Player Meta")):
                 "SELECT * FROM e_users ORDER BY bal DESC"
             )
             data = []
-            for u in range(5):  # TODO test me!! or else
+            for u in range(5):
                 data.append(tuple(all_users)[u])
-            data2 = await self.bot.get_player(ctx.author.id)
-            if data2 is None:
-                color = discord.Color.blue()
-            else:
-                color = int(("0x" + data2[5]), 0)
+
+            embed_color = discord.Color(discord.Color.from_rgb(0, 0, 0))
+            try: 
+                player = await Player.get(ctx.author.id, self.bot)
+                embed_color = player.profile_color
+            except NotAPlayerError: pass
 
             embed = discord.Embed(
                 title="User Leaderboard",
                 description="Sorted by balance, descending",
-                color=color,
+                color=embed_color,
             )
             for i in data:
                 await asyncio.sleep(0.1)

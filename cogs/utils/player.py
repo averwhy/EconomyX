@@ -9,7 +9,7 @@ log = logging.getLogger(__name__)
 
 
 async def get(id: int, bot) -> player:
-    """Gets a `Player` object from its user id."""
+    """Gets a `Player` object from its user id. Raises `NotAPlayerError` if the user is not in the database."""
     return await player(id, bot).__ainit__()
 
 

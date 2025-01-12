@@ -135,7 +135,7 @@ class lottery(commands.Cog, command_attrs=dict(name="Lottery")):
         )
         if lcheck is not None:
             return await ctx.send(
-                "You've already bought a lottery ticket. Use `e$lottery` to view when it will be drawn."
+                f"You've already bought a lottery ticket. Use `{ctx.clean_prefix}lottery` to view when it will be drawn."
             )
 
         drawingwhen = await self.bot.pool.fetchrow("SELECT * FROM e_lottery_main")
