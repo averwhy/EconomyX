@@ -146,7 +146,7 @@ class misc(commands.Cog, command_attrs=dict(name="Misc")):
         data = await self.bot.pool.fetchrow(
             "SELECT * FROM e_prefixes WHERE userid = $1", ctx.author.id
         )
-        if tuple(data) is None:
+        if not data:
             await self.bot.pool.execute(
                 "INSERT INTO e_prefixes(userid, prefix, setwhen) VALUES ($1, $2, $3)",
                 ctx.author.id,

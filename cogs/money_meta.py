@@ -26,11 +26,11 @@ class money_meta(commands.Cog, command_attrs=dict(name="Money Meta")):
             )
             return
         try:
-            await Player.get(ctx.author.id, self.bot)
+            user = await Player.get(user.id, self.bot)
         except NotAPlayerError:
             return await ctx.send("That player doesn't seem to have a profile.")
         try:
-            await self.bot.transfer_money(ctx.author, user, amount)
+            await player.transfer_money(amount, user) # transfer from the author to the specified user
             await self.bot.pool.execute(
                 "UPDATE e_users SET totalearnings = (totalearnings + $1) WHERE id = $2",
                 amount,

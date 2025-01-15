@@ -12,3 +12,5 @@ def db_dsn():
 token: str = SECRETS['token']
 
 webhook: str = SECRETS['webhook']
+
+topgg_token: str = SECRETS['topgg_token']

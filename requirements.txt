@@ -7,3 +7,4 @@ jishaku @ git+https://github.com/Gorialis/jishaku@master
 discord-ext-menus @ git+https://github.com/Rapptz/discord-ext-menus
 discord-ext-menus-views @ git+https://github.com/oliver-ni/discord-ext-menus-views
 python_dateutil==2.8.2
+topggpy==1.4.0

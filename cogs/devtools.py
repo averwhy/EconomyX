@@ -10,13 +10,13 @@ import humanize
 import logging
 from discord import Webhook
 import aiohttp
+import topgg
 from .utils.errors import NotAPlayerError
-from config import webhook
+from config import webhook, topgg_token
 
 OWNER_ID = 267410788996743168
 SUPPORT_SERVER = 798014878018174976
 log = logging.getLogger(__name__)
-
 
 class EmojiListSource(menus.ListPageSource):
     def __init__(self, data):
@@ -69,6 +69,7 @@ class devtools(commands.Cog, command_attrs=dict(name="Devtools", hidden=True)):
 
     async def cog_load(self):
         self.database_backup_task.start()
+        self.topgg = topgg.DBLClient(bot=self.bot, token=topgg_token, autopost=True)
 
     async def cog_unload(self):
         try:

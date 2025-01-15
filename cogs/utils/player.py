@@ -116,8 +116,8 @@ class player:
         msg = f"{author} ({author.id}) balance {i_or_d} by {amount} with command '{(command.parent.name+'') if command.parent is not None else ''}{command.name}'"
         log.info(msg)
 
-    async def transfer_money(self, amount: int, to: player):
-        """Transfers money from one player to another. Automatically refreshes both objects.
+    async def transfer_money(self, amount: int, to: player) -> tuple[player, player]:
+        """Transfers money from one player to another. Returns the refreshed player objects.
         Requires the `to` arg to be a player object."""
         await self.bot.pool.execute(
             "UPDATE e_users SET bal = (bal - $1) WHERE id = $2", amount, self.id
@@ -129,6 +129,7 @@ class player:
         log.info(
             f"[{now}] {to.name} ({to.id}) was paid by {self.name} ({self.id}); recieving players balance is now {to.balance + amount} (was {to.balance})"
         )
+        return (await self.refresh(), await to.refresh())
 
     async def get_job_data(self):
         """Gets job data because i havent written a class for it yet"""
