@@ -1,9 +1,11 @@
+import urllib.parse
 import discord
 import re
 import random
 import asyncio
 import logging
-from utils.errors import NotAPlayerError
+import validators
+from .utils.errors import NotAPlayerError
 from discord.ext import commands
 from discord.ext import tasks
 from .utils.botviews import Confirm
@@ -88,6 +90,7 @@ class stocks(commands.Cog, command_attrs=dict(name="Stocks")):
         if playerstock is None:
             embed.add_field(name="Owned stock", value="None")
         else:
+            playerstock = tuple(playerstock)
             embed.add_field(
                 name="Owned Stock", value=f"{playerstock[1]} [`{playerstock[0]}`]"
             )
@@ -135,6 +138,7 @@ class stocks(commands.Cog, command_attrs=dict(name="Stocks")):
         counter = 0
         for i in allstocks:
             i = tuple(i)
+            print(i)
             if counter > 10:
                 break
             investor_count = await self.bot.pool.fetchrow(
@@ -143,7 +147,7 @@ class stocks(commands.Cog, command_attrs=dict(name="Stocks")):
             tl = self.bot.utc_calc(i[5], style="R")
             embed.add_field(
                 name=i[1],
-                value=f"ID: {i[0]}, Points: {round(i[2],1)}, {tuple(investor_count)[0]} Investors, Created {tl}",
+                value=f"ID: {i[0]}, {round(i[2],1)} points, {tuple(investor_count)[0]} Investors, Created {tl}",
             )
             counter += 1
         await ctx.send(embed=embed)
@@ -156,7 +160,8 @@ class stocks(commands.Cog, command_attrs=dict(name="Stocks")):
             return await ctx.send(
                 "I couldn't find that stock, check the name or ID again. Note: Names are case sensitive."
             )
-        embed_color = discord.Color(discord.Color.brand_red())
+        stock = tuple(stock)
+        embed_color = discord.Color.brand_red()
         try: 
             player = await Player.get(ctx.author.id, self.bot)
             embed_color = player.profile_color
@@ -195,12 +200,8 @@ class stocks(commands.Cog, command_attrs=dict(name="Stocks")):
         if not name.isalpha():
             return await ctx.send("Stock names must be letters only.")
         name = name.upper()
-        result = re.findall(
-            r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+",
-            icon_url,
-        )
-        if result == []:
-            return await ctx.send("Invalid URL provided.")
+        if isinstance(validators.url(icon_url), validators.ValidationError):
+                    return await ctx.send(f"Invalid URL provided.")
 
         stockid = random.randint(1000, 9999)
         view = Confirm()
@@ -213,14 +214,14 @@ class stocks(commands.Cog, command_attrs=dict(name="Stocks")):
             return await msg.edit(content=f"Timed out after 3 minutes.")
         elif view.value:
             await self.bot.pool.execute(
-                "UPDATE e_users SET bal = (bal - 1000) WHERE id = $1", ctx.author.id
-            )
-            await self.bot.pool.execute(
-                "INSERT INTO e_stocks(id, name, ownerid, icon_url) VALUES ($1, $2, $3, $4)",
+                "INSERT INTO e_stocks(stockid, name, ownerid, icon_url) VALUES ($1, $2, $3, $4)",
                 stockid,
                 name,
                 ctx.author.id,
                 icon_url,
+            )
+            await self.bot.pool.execute(
+                "UPDATE e_users SET bal = (bal - 1000) WHERE id = $1", ctx.author.id
             )
             await msg.delete()
             return await ctx.reply("👍")
@@ -304,21 +305,23 @@ class stocks(commands.Cog, command_attrs=dict(name="Stocks")):
             except:
                 pass
             await confirm.edit("Timed out after 30s.")
-        if str(reaction) == rlist[0]:
+        def content_check(message: discord.Message) -> bool:
+            return (
+                message.author == ctx.author
+                and message.channel.id == ctx.channel.id
+            )
+        if str(reaction) == rlist[0]: # wants to edit stock name
             msg = await ctx.reply(
                 "What should the new stock name be? (Must be alphanumeric.)"
             )
 
-            def check2(message: discord.Message) -> bool:
-                return (
-                    message.author == ctx.author
-                    and message.channel.id == ctx.channel.id
-                )
-
             try:
-                message = await self.bot.wait_for("message", timeout=30, check=check2)
+                message = await self.bot.wait_for("message", timeout=30, check=content_check)
             except asyncio.TimeoutError:
-                return await ctx.edit("")
+                try:
+                    await msg.delete()
+                    await confirm.delete()
+                except: pass # forbidden probably
             # This will be executed if the author responded properly
             else:
                 name = message.content
@@ -349,6 +352,28 @@ class stocks(commands.Cog, command_attrs=dict(name="Stocks")):
                         name,
                         ctx.author.id,
                     )
+        elif str(reaction) == rlist[1]: # wants to edit stock icon
+            icon_url = await ctx.reply(
+            "What should the new icon be? (Must be a valid direct image link.)"
+            )
+            try:
+                message = await self.bot.wait_for("message", timeout=30, check=content_check)
+            except asyncio.TimeoutError:
+                return await ctx.edit("")
+            # This will be executed if the author responded properly
+            else:
+                if isinstance(validators.url(icon_url.content), validators.ValidationError):
+                    return await ctx.send(f"Invalid URL provided.")
+                await self.bot.pool.execute(
+                    "UPDATE e_stocks SET icon_url = $1 WHERE ownerid = $2",
+                    icon_url.content,
+                    ctx.author.id,
+                )
+                try: await icon_url.delete()
+                except: pass #forbidden probably
+                await ctx.reply("👍")
+
+
 
     @commands.group(invoke_without_command=True)
     async def invest(self, ctx, name_or_id, amount):

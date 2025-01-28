@@ -111,14 +111,14 @@ class EcoBot(commands.Bot):
                 )
             except asyncpg.DataError:
                 return None
-        return tuple(data)
+        return data
 
     async def get_stock_from_player(self, userid):
         """Gets a stock from the database. Takes a user/member object."""
         data = await bot.pool.fetchrow(
             "SELECT * FROM e_stocks WHERE ownerid = $1", userid
         )
-        return tuple(data)
+        return data
 
     async def begin_user_deletion(self, ctx, i_msg):
         """Begins the user deletion process."""
