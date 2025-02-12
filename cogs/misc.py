@@ -12,9 +12,10 @@ import inspect
 from .utils import botmenus
 from .utils import player as Player
 from .utils.errors import NotAPlayerError
+from .utils.botviews import AdminX
 
 OWNER_ID = 267410788996743168
-
+VALID_CHANNEL_NAMES_FOR_WELCOME_MESSAGE = ("general", "chat", "bot", "bots")
 
 # Thanks to Kal for helping me out with this
 class HelpCommand(commands.HelpCommand):
@@ -120,6 +121,35 @@ class misc(commands.Cog, command_attrs=dict(name="Misc")):
 
     def cog_unload(self):
         self.bot.help_command = self.bot._original_help_command
+
+    @commands.Cog.listener()
+    async def on_guild_join(self, guild: discord.Guild):
+        best_channel = [
+            channel
+            for channel in guild.channels
+            if channel.permissions_for(guild.me).send_messages
+            and channel.name in VALID_CHANNEL_NAMES_FOR_WELCOME_MESSAGE
+        ][0]
+        if best_channel is None:
+            best_channel = [
+                channel
+                for channel in guild.channels
+                if channel.permissions_for(guild.me).send_messages
+            ][0]
+        if best_channel is None:
+            return # Rip
+        tview = AdminX(timeout=300)
+        welcome_embed = discord.Embed(
+            title="Thanks for adding me!",
+            description="I'm EconomyX, a simple but unique global economy bot for Discord. To get started, type `e$help`, and `e$register`.\nTo change what prefix I respond to, type `e$prefix set [new prefix]`.\nIf you need help at all, please join the support server: `e$support`\n-# Note that EconomyX is a ***global*** economy bot, so things like custom currency names/server-specific settings are not supported.",
+            color=discord.Color.from_rgb(0,0,0)
+        )
+        try: 
+            welcome_msg = await best_channel.send(embed=welcome_embed, view=tview)
+            await tview.wait()
+            await welcome_msg.edit(view=None)
+        except discord.Forbidden:
+            pass # somehow our shit got messed up
 
     @commands.group(invoke_without_command=True)
     async def prefix(self, ctx):

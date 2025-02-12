@@ -14,6 +14,19 @@ class X(discord.ui.View):
         self.stop()
         await interaction.message.delete()
 
+class AdminX(discord.ui.View):
+    """Simple class to offer a delete button on welcome messages"""
+    def __init__(self, timeout: int = 180):
+        super().__init__(timeout=timeout)
+
+    @discord.ui.button(label="", emoji="🗑️")
+    async def delete(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.channel.permissions_for(interaction.user).manage_messages:
+            await interaction.response.defer()
+            try: await interaction.message.delete()
+            except discord.Forbidden: pass # the bot should have perms to delete its own message, so if this happened, then it's access to the channel was revoked in the timeout frame
+        else:
+            await interaction.response.send_message("Only users with `Manage Messages` can delete this. Sorry!", ephemeral=True)
 
 class Confirm(discord.ui.View):
     def __init__(self, disable_after_click: bool = False):
